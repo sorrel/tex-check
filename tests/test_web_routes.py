@@ -118,3 +118,23 @@ def test_every_response_carries_security_headers(router):
     response = call(router, "/api/nothing-here")
     assert response.status == 404
     assert response.extra_headers["X-Frame-Options"] == "DENY"
+
+
+def test_ok_route_hides_the_use(router):
+    _, use = first_use(router)
+    assert json.loads(call(router, "/api/ok", "POST", {"use": use["id"]}).body) == {"ok": True}
+    item, still = first_use(router)
+    assert still["id"] != use["id"]
+
+
+def test_done_and_undo_routes(router):
+    _, use = first_use(router)
+    call(router, "/api/ok", "POST", {"use": use["id"]})
+    [entry] = json.loads(call(router, "/api/done").body)["done"]
+    assert entry["action"] == "ok"
+    assert call(router, "/api/undo", "POST", {"entry": entry["id"]}).status == 200
+    assert json.loads(call(router, "/api/done").body)["done"][0]["undone"] is True
+
+
+def test_undo_unknown_is_404(router):
+    assert call(router, "/api/undo", "POST", {"entry": "nope"}).status == 404

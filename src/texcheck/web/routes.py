@@ -63,6 +63,12 @@ class Router:
             return self._open(request)
         if method == "POST" and path == "/api/words":
             return self._words(request)
+        if method == "POST" and path == "/api/ok":
+            return self._ok(request)
+        if method == "GET" and path == "/api/done":
+            return Response.json({"done": self.session.done()})
+        if method == "POST" and path == "/api/undo":
+            return self._undo(request)
         if method == "POST" and path == "/api/recheck":
             threading.Thread(target=self.session.recheck, daemon=True).start()
             return Response.json({"ok": True})
@@ -89,6 +95,26 @@ class Router:
         except ValueError as err:
             return Response.json({"error": str(err)}, status=400)
         return Response.json({"removed": removed})
+
+    def _ok(self, request: Request) -> Response:
+        body = _body(request)
+        if body is None or not isinstance(body.get("use"), str):
+            return Response.json({"error": "expected {\"use\": id}"}, status=400)
+        try:
+            self.session.ok(body["use"])
+        except StaleId:
+            return Response.json({"error": _STALE}, status=409)
+        return Response.json({"ok": True})
+
+    def _undo(self, request: Request) -> Response:
+        body = _body(request)
+        if body is None or not isinstance(body.get("entry"), str):
+            return Response.json({"error": "expected {\"entry\": id}"}, status=400)
+        try:
+            self.session.undo(body["entry"])
+        except KeyError:
+            return Response.json({"error": "no such action"}, status=404)
+        return Response.json({"ok": True})
 
     def _static(self, path: str) -> Response:
         name = "index.html" if path == "/" else path.removeprefix("/static/")

@@ -221,3 +221,89 @@ def test_open_finds_the_text_that_was_checked(session):
     session.open(use["id"])
     path, line, col, text = session.opened[-1]
     assert text == checked
+
+
+# ── OK marks, the done log and undo ─────────────────────────────────────────
+
+from texcheck import donelog  # noqa: E402
+
+
+def uses_of(session, word):
+    item = item_for(session, word)
+    return item["uses"] if item else []
+
+
+@needs_aspell
+def test_items_carry_a_reason(session):
+    assert item_for(session, "lyrca")["reason"] == "not in the dictionary"
+
+
+@needs_aspell
+def test_ok_hides_use_and_logs(session):
+    first, second = uses_of(session, "lyrca")
+    session.ok(first["id"])
+    assert [u["id"] for u in uses_of(session, "lyrca")] == [second["id"]]
+    [entry] = donelog.entries(donelog.log_file(session.path))
+    assert (entry.action, entry.word, entry.line) == ("ok", "lyrca", 2)
+
+
+@needs_aspell
+def test_ok_survives_a_recheck(session):
+    first, _ = uses_of(session, "lyrca")
+    session.ok(first["id"])
+    session.recheck()
+    assert len(uses_of(session, "lyrca")) == 1
+
+
+@needs_aspell
+def test_done_lists_newest_first(session):
+    first, _ = uses_of(session, "lyrca")
+    session.ok(first["id"])
+    session.add_word(item_for(session, "Ericsson")["id"], "personal")
+    done = session.done()
+    assert [d["action"] for d in done] == ["personal", "ok"]
+    assert done[0]["word"] == "Ericsson" and done[0]["undone"] is False
+
+
+@needs_aspell
+def test_undo_ok_brings_it_back(session):
+    first, _ = uses_of(session, "lyrca")
+    session.ok(first["id"])
+    session.undo(session.done()[0]["id"])
+    assert len(uses_of(session, "lyrca")) == 2
+    assert session.done()[0]["undone"] is True
+
+
+@needs_aspell
+def test_undo_add_removes_word_and_rechecks(session):
+    session.add_word(item_for(session, "lyrca")["id"], "book")
+    session.undo(session.done()[0]["id"])
+    assert "lyrca" not in wordlists.load([wordlists.book_file(session.path)])
+    assert len(uses_of(session, "lyrca")) == 2
+
+
+@needs_aspell
+def test_undo_add_keeps_a_word_that_was_already_there(session):
+    """If the word was in the list before, undoing this add must not take it out."""
+    book = wordlists.book_file(session.path)
+    item = item_for(session, "lyrca")
+    wordlists.append_word(book, "lyrca")  # added by hand meanwhile
+    session.add_word(item["id"], "book")
+    session.undo(session.done()[0]["id"])
+    assert "lyrca" in wordlists.load([book])
+
+
+@needs_aspell
+def test_undo_twice_is_harmless(session):
+    first, _ = uses_of(session, "lyrca")
+    session.ok(first["id"])
+    entry = session.done()[0]["id"]
+    session.undo(entry)
+    session.undo(entry)
+    assert len([e for e in donelog.entries(donelog.log_file(session.path)) if e.action == "undo"]) == 1
+
+
+@needs_aspell
+def test_undo_unknown_raises(session):
+    with pytest.raises(KeyError):
+        session.undo("no-such-entry")
