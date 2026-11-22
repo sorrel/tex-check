@@ -120,6 +120,7 @@ from texcheck.groups import reason  # noqa: E402
     ("colorful", ["colourful"], "American spelling?"),
     ("realize", ["realise"], "American spelling?"),
     ("center", ["centre"], "American spelling?"),
+    ("accoutrement", ["accoutrements", "acquirement"], "aspell knows only the plural"),
     ("synthesisers", ["synthesises", "synthesizers"], "British spelling; aspell knows only the American"),
     ("technicolour", ["Technicolor", "technicolor"], "British spelling; aspell knows only the American"),
 ])

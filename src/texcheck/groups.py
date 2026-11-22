@@ -110,6 +110,8 @@ def reason(word: str, suggestions: list[str], note: str) -> str:
         return "missing apostrophe?"
     if word.lower() in lower:
         return "capitals differ"
+    if (word + "s").lower() in lower or (word + "es").lower() in lower:
+        return "aspell knows only the plural"
     for suggestion in suggestions:
         if fold(suggestion) == fold(word) and suggestion.replace(" ", "").replace("-", "") != suggestion:
             return "usually two words" if " " in suggestion else "usually hyphenated"
