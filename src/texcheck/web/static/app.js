@@ -5,6 +5,10 @@
 // redraws when a re-check has produced a new version, keeping the group and
 // scroll position, so fixing typos in Texifier never loses your place.
 //
+// Every use of a word is its own row, because each place needs checking on
+// its own: OK clears that one place. Every action is logged beside the book
+// and can be undone from the Done view.
+//
 // Text from the book is put on the page with textContent only, never as
 // HTML: a stray "<" in the prose must show as itself.
 
@@ -12,13 +16,15 @@
 
 const TOKEN = document.querySelector('meta[name="token"]').content;
 const SPELLING = ["typos", "other", "quotes", "bold", "names", "variants", "spelling"];
+const DONE = "__done__";
 const POLL_MS = 2000;
+const ACTIONS = { ok: "Marked OK", book: "Added for this book", personal: "Added everywhere" };
 
 const state = {
   data: null,        // the last /api/findings
   version: 0,
-  group: null,       // key of the group shown
-  current: 0,        // index of the highlighted item
+  group: null,       // key of the group shown, or DONE
+  current: 0,        // index of the highlighted row (a use) in the group
   lastError: null,   // so a dismissed check error is not reshown every poll
 };
 
@@ -32,10 +38,17 @@ function el(tag, attrs = {}, ...children) {
     else node.setAttribute(key, value);
   }
   for (const child of children) {
-    if (child === null || child === undefined) continue;
+    if (child === null || child === undefined || child === "") continue;
     node.append(child instanceof Node ? child : String(child));
   }
   return node;
+}
+
+function button(label, onclick, title) {
+  return el("button", { type: "button", title: title || label, onclick: (event) => {
+    event.stopPropagation();
+    onclick();
+  } }, label);
 }
 
 // ── talking to the server ──────────────────────────────────────────────────
@@ -65,18 +78,18 @@ async function loadFindings() {
   const data = await api("/api/findings");
   if (!data) return;
   const scroll = window.scrollY;
-  const keepGroup = state.data !== null;
+  const keep = state.data !== null;
   state.data = data;
   state.version = data.version;
   const keys = data.groups.map((g) => g.key);
-  if (!keepGroup || !keys.includes(state.group)) {
+  if (!keep || (state.group !== DONE && !keys.includes(state.group))) {
     const first = data.groups.find((g) => SPELLING.includes(g.key) && g.count > 0)
       || data.groups.find((g) => g.count > 0) || data.groups[0];
     state.group = first ? first.key : null;
     state.current = 0;
   }
-  draw();
-  if (keepGroup) window.scrollTo(0, scroll);
+  await draw();
+  if (keep) window.scrollTo(0, scroll);
 }
 
 async function poll() {
@@ -94,24 +107,22 @@ async function poll() {
 
 // ── drawing ────────────────────────────────────────────────────────────────
 
-function plural(n, word) {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
-}
-
-function draw() {
+async function draw() {
   const data = state.data;
   $("file").textContent = data.file;
   const total = data.groups.reduce((sum, g) => sum + g.count, 0);
   $("checked").textContent = `checked ${data.checked_at} · ${total} found`;
   document.title = `${data.file} · tex-check`;
   drawGroups();
-  drawItems();
+  if (state.group === DONE) await drawDone();
+  else drawItems();
 }
 
 function drawGroups() {
   const nav = $("groups");
   nav.replaceChildren();
-  const spelling = state.data.groups.filter((g) => SPELLING.includes(g.key));
+  const shown = (g) => g.count > 0 || !SPELLING.includes(g.key) || g.key === "spelling";
+  const spelling = state.data.groups.filter((g) => SPELLING.includes(g.key) && shown(g));
   const others = state.data.groups.filter((g) => !SPELLING.includes(g.key));
   const link = (group) => {
     const classes = ["group-link"];
@@ -121,7 +132,7 @@ function drawGroups() {
       type: "button",
       class: classes.join(" "),
       "aria-current": String(group.key === state.group),
-      onclick: () => { state.group = group.key; state.current = 0; draw(); window.scrollTo(0, 0); },
+      onclick: () => show(group.key),
     }, el("span", {}, group.title), el("span", { class: "count" }, group.skipped ? "skipped" : group.count));
   };
   if (spelling.length) {
@@ -130,10 +141,25 @@ function drawGroups() {
     nav.append(el("hr", { class: "divider" }));
   }
   others.forEach((g) => nav.append(link(g)));
+  $("done-link").setAttribute("aria-current", String(state.group === DONE));
+}
+
+function show(key) {
+  state.group = key;
+  state.current = 0;
+  draw();
+  window.scrollTo(0, 0);
 }
 
 function currentGroup() {
   return state.data.groups.find((g) => g.key === state.group);
+}
+
+// The rows j/k move through: every use of every item in the group, in order.
+function rows() {
+  const group = currentGroup();
+  if (!group) return [];
+  return group.items.flatMap((item) => item.uses.map((use) => ({ item, use })));
 }
 
 function drawItems() {
@@ -151,21 +177,20 @@ function drawItems() {
     list.append(el("li", { class: "empty-group" }, "Nothing here."));
     return;
   }
-  state.current = Math.min(state.current, group.items.length - 1);
-  group.items.forEach((item, index) => list.append(drawItem(item, index)));
+  state.current = Math.min(state.current, rows().length - 1);
+  let index = 0;
+  for (const item of group.items) {
+    list.append(drawItem(item, index));
+    index += item.uses.length;
+  }
 }
 
-function drawItem(item, index) {
-  const first = item.uses[0];
+function drawItem(item, firstIndex) {
   const head = el("div", { class: "item-head" });
   if (item.word) {
     head.append(el("span", { class: "word" }, item.word));
     if (item.uses.length > 1) head.append(el("span", { class: "times" }, `×${item.uses.length}`));
-  } else {
-    head.append(el("span", { class: "message" }, item.message));
-  }
-  head.append(el("span", { class: "where" }, `${state.data.file}:${first.line}:${first.col}`));
-  if (item.word) {
+    if (item.reason) head.append(el("span", { class: "reason" }, item.reason));
     const sugg = el("span", { class: "suggestions" }, "→ ");
     if (item.suggestions.length) {
       item.suggestions.forEach((s, i) => {
@@ -176,39 +201,66 @@ function drawItem(item, index) {
       sugg.append("no suggestions");
     }
     head.append(sugg);
+  } else {
+    head.append(el("span", { class: "message" }, item.message));
+    if (item.note) head.append(el("span", { class: "note" }, item.note));
   }
-  if (item.note) head.append(el("span", { class: "note" }, item.note));
 
-  const context = el("p", { class: "context" },
-    first.cut_left ? "…" : "", first.before, el("mark", {}, first.hit), first.after,
-    first.cut_right ? "…" : "");
+  const uses = el("ol", { class: "uses" });
+  item.uses.forEach((use, i) => uses.append(drawUse(use, firstIndex + i)));
 
-  const actions = el("div", { class: "actions" },
-    el("button", { type: "button", onclick: () => openUse(first) }, "Open in Texifier"));
+  const li = el("li", { class: "item", "data-id": item.id }, head, uses);
   if (item.word) {
-    actions.append(
-      el("button", { type: "button", onclick: () => addWord(item, "book") }, "Add for this book"),
-      el("button", { type: "button", onclick: () => addWord(item, "personal") }, "Add everywhere"),
-    );
+    li.append(el("div", { class: "item-actions" },
+      button("Add for this book", () => addWord(item, "book"), "every use: add to this book's word list"),
+      button("Add everywhere", () => addWord(item, "personal"), "every use: add to your personal word list"),
+    ));
   }
-  if (item.uses.length > 1) {
-    const also = el("span", { class: "also" }, "also on line ");
-    item.uses.slice(1).forEach((use, i) => {
-      if (i) also.append(" ");
-      also.append(el("button", { type: "button", title: "Open in Texifier", onclick: () => openUse(use) }, use.line));
-    });
-    actions.append(also);
-  }
+  return li;
+}
 
+function drawUse(use, index) {
+  const context = el("p", { class: "context" },
+    use.cut_left ? "…" : "", use.before, el("mark", {}, use.hit), use.after,
+    use.cut_right ? "…" : "");
   return el("li", {
-    class: `item${index === state.current ? " current" : ""}`,
-    "data-id": item.id,
+    class: `use${index === state.current ? " current" : ""}`,
+    "data-use": use.id,
     onclick: () => { state.current = index; markCurrent(); },
-  }, head, context, actions);
+  },
+  context,
+  el("span", { class: "where" }, `${state.data.file}:${use.line}:${use.col}`),
+  el("span", { class: "use-actions" },
+    button("Open in Texifier", () => openUse(use)),
+    button("OK", () => markOk(use), "fine here: hide this one place"),
+  ));
 }
 
 function markCurrent() {
-  [...$("items").children].forEach((li, i) => li.classList.toggle("current", i === state.current));
+  document.querySelectorAll(".use").forEach((li, i) => li.classList.toggle("current", i === state.current));
+}
+
+async function drawDone() {
+  const list = $("items");
+  $("group-title").textContent = "Done";
+  $("group-blurb").textContent = "everything marked OK or added, newest first; kept in tex-check-done.jsonl";
+  const reply = await api("/api/done");
+  list.replaceChildren();
+  if (!reply) return;
+  if (!reply.done.length) {
+    list.append(el("li", { class: "empty-group" }, "Nothing yet."));
+    return;
+  }
+  for (const entry of reply.done) {
+    const what = entry.word || entry.message || entry.text;
+    list.append(el("li", { class: `done-entry${entry.undone ? " undone" : ""}` },
+      el("span", { class: "when" }, entry.at.slice(11) || entry.at),
+      el("span", {}, ACTIONS[entry.action] || entry.action),
+      el("span", {}, what, el("span", { class: "where" }, `  line ${entry.line}`)),
+      entry.undone ? el("span", { class: "quiet" }, "undone")
+        : button("Undo", () => undo(entry), "put this back as it was"),
+    ));
+  }
 }
 
 function drawStatus(status) {
@@ -239,6 +291,21 @@ async function openUse(use) {
   if (reply && reply.error) showError(reply.error);
 }
 
+function fadeThenRedraw(nodes) {
+  nodes.forEach((node) => node.classList.add("leaving"));
+  setTimeout(() => { const y = window.scrollY; draw(); window.scrollTo(0, y); }, nodes.length ? 250 : 0);
+}
+
+async function markOk(use) {
+  if (!await api("/api/ok", { use: use.id })) return;
+  for (const group of state.data.groups) {
+    for (const item of group.items) item.uses = item.uses.filter((u) => u.id !== use.id);
+    group.items = group.items.filter((item) => item.uses.length);
+    group.count = group.items.length;
+  }
+  fadeThenRedraw([...document.querySelectorAll(`[data-use="${CSS.escape(use.id)}"]`)]);
+}
+
 async function addWord(item, scope) {
   const reply = await api("/api/words", { item: item.id, scope });
   if (!reply) return;
@@ -247,24 +314,28 @@ async function addWord(item, scope) {
     group.items = group.items.filter((other) => !gone.has(other.id));
     group.count = group.items.length;
   }
-  const leaving = [...$("items").children].filter((li) => gone.has(li.dataset.id));
-  leaving.forEach((li) => li.classList.add("leaving"));
-  setTimeout(() => { const y = window.scrollY; draw(); window.scrollTo(0, y); }, leaving.length ? 250 : 0);
+  fadeThenRedraw([...$("items").children].filter((li) => gone.has(li.dataset.id)));
+}
+
+async function undo(entry) {
+  if (!await api("/api/undo", { entry: entry.id })) return;
+  await loadFindings();
 }
 
 // ── keys ───────────────────────────────────────────────────────────────────
 
 document.addEventListener("keydown", (event) => {
-  if (event.metaKey || event.ctrlKey || event.altKey || !state.data) return;
-  const group = currentGroup();
-  if (!group || !group.items.length) return;
-  const item = group.items[state.current];
+  if (event.metaKey || event.ctrlKey || event.altKey || !state.data || state.group === DONE) return;
+  const all = rows();
+  if (!all.length) return;
+  const row = all[state.current];
   const keys = {
-    j: () => { state.current = Math.min(state.current + 1, group.items.length - 1); },
+    j: () => { state.current = Math.min(state.current + 1, all.length - 1); },
     k: () => { state.current = Math.max(state.current - 1, 0); },
-    o: () => openUse(item.uses[0]),
-    b: () => item.word && addWord(item, "book"),
-    e: () => item.word && addWord(item, "personal"),
+    o: () => openUse(row.use),
+    x: () => markOk(row.use),
+    b: () => row.item.word && addWord(row.item, "book"),
+    e: () => row.item.word && addWord(row.item, "personal"),
   };
   const action = keys[event.key];
   if (!action) return;
@@ -272,11 +343,12 @@ document.addEventListener("keydown", (event) => {
   action();
   if (event.key === "j" || event.key === "k") {
     markCurrent();
-    $("items").children[state.current].scrollIntoView({ block: "nearest" });
+    document.querySelectorAll(".use")[state.current].scrollIntoView({ block: "nearest" });
   }
 });
 
 $("recheck").addEventListener("click", () => api("/api/recheck", {}));
 $("error-close").addEventListener("click", () => { $("error").hidden = true; });
+$("done-link").addEventListener("click", () => show(DONE));
 
 loadFindings().then(poll);

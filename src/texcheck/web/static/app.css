@@ -144,8 +144,37 @@ main { padding: 2rem 2.5rem 6rem; max-width: calc(var(--measure) + 5rem); }
   padding: 1rem 0.75rem;
   border-radius: 6px;
 }
-.item.current { background: var(--tint); }
 .item.leaving { opacity: 0; transition: opacity 0.25s; }
+
+.uses { list-style: none; margin: 0.6rem 0 0; padding: 0; }
+.use {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 1rem;
+  align-items: center;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+}
+.use.current { background: var(--tint); }
+.use.leaving { opacity: 0; transition: opacity 0.25s; }
+.use .context { margin: 0; grid-column: 1; }
+.use .where { grid-column: 1; }
+.use .use-actions { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 0.4rem; }
+.reason { color: var(--caveat); font-size: 0.9rem; }
+.item-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.4rem; }
+
+.done-list { list-style: none; margin: 0; padding: 0; }
+.done-entry {
+  display: grid;
+  grid-template-columns: 4.5rem 9rem 1fr auto;
+  gap: 1rem;
+  align-items: baseline;
+  border-top: 1px solid var(--rule);
+  padding: 0.6rem 0.4rem;
+}
+.done-entry.undone { color: var(--ink-soft); text-decoration: line-through; }
+.done-entry .when { font-family: var(--mono); font-size: 0.8rem; color: var(--ink-soft); }
+#done-link { margin-top: 0.6rem; }
 
 .item-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 0.9rem; }
 .word { color: var(--hit); font-weight: 600; font-size: 1.05rem; }
