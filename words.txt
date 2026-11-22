@@ -1,0 +1,1 @@
+# tex-check word list: one word per line, '#' starts a comment

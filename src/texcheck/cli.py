@@ -6,13 +6,11 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import __version__, places
+from . import __version__, places, wordlists
 from .checks import STAGES, Settings, resolve
 from .checks.spelling import SpellerMissing
 from .prose import Source, extract
 from .report import Style, as_json, dump_json, print_report
-
-WORDLIST_NAME = "tex-check-words.txt"
 
 EPILOG = f"""\
 stages (run in this order):
@@ -27,8 +25,10 @@ examples:
   tex-check document.tex --json | jq '.[] | select(.stage=="spelling")'
   tex-check --update-places --countries GB,IE,FI
 
-word list: words aspell should accept (names, slang), one per line, are read
-from {WORDLIST_NAME} beside the .tex file if it exists, and from any --words file.
+word lists: words aspell should accept, one per line, are read from
+{wordlists.BOOK_NAME} beside the .tex file (this book's names and dialect), from
+the personal list {wordlists.personal_file()} (good words everywhere), and from
+any --words file.
 
 place names: after `tex-check --update-places`, capitalised words found in the
 GeoNames gazetteer (GeoNames, CC BY 4.0) are accepted. It is saved in
@@ -53,6 +53,8 @@ def parse_args(argv):
                    help="extra word list for the spelling stage (repeatable)")
     p.add_argument("--dict", default="en_GB-ise", metavar="NAME",
                    help="aspell dictionary (default: en_GB-ise; see `aspell dicts`)")
+    p.add_argument("--no-personal-words", action="store_true",
+                   help="leave out the personal word list")
     p.add_argument("--spell-bold", action="store_true",
                    help="also spell-check bold capitalised words (names, by house style)")
     p.add_argument("--spell-capitals", action="store_true",
@@ -117,10 +119,12 @@ def main(argv=None) -> int:
         source = Source(read(path), str(path))
         prose = extract(source.text)
 
-        local_list = path.parent / WORDLIST_NAME
+        lists = [wordlists.book_file(path)]
+        if not args.no_personal_words:
+            lists.append(wordlists.personal_file())
         settings = Settings(
             dictionary=args.dict,
-            wordlists=([local_list] if local_list.is_file() else []) + args.words,
+            wordlists=[f for f in lists if f.is_file()] + args.words,
             spell_bold_names=args.spell_bold,
             spell_capitals=args.spell_capitals,
             places=gazetteer,

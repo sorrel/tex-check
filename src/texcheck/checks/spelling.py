@@ -9,9 +9,8 @@ Left alone by default, to keep the list to likely mistakes:
   bands, people and places); --spell-bold checks them too;
 * ALL-CAPS words (acronyms such as INLA); --spell-capitals checks them;
 * single letters and words containing digits;
-* any word in a word list: one word per line, case-insensitive, '#' comments.
-  The CLI looks for `tex-check-words.txt` beside the .tex file, plus any
-  --words files;
+* any word in a word list (see wordlists.py): the book's own, the personal
+  list and any --words files;
 * capitalised words that aspell does not know but the place-name gazetteer
   does (see places.py; built with `tex-check --update-places`).
 """
@@ -21,10 +20,10 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
-from pathlib import Path
-
 from ..findings import Finding
 from ..places import is_place
+from ..wordlists import load as load_wordlists
+from ..wordlists import normalise
 
 NAME = "spelling"
 TITLE = "Spelling"
@@ -52,18 +51,6 @@ class SpellerMissing(RuntimeError):
     pass
 
 
-def load_wordlists(paths: list[Path]) -> set[str]:
-    words = set()
-    for path in paths:
-        for line in path.read_text(encoding="utf-8").splitlines():
-            line = line.split("#", 1)[0].strip()
-            if line:
-                words.add(normalise(line).lower())
-    return words
-
-
-def normalise(word: str) -> str:
-    return word.replace("’", "'")
 
 
 def candidates(prose, settings):
