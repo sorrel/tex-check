@@ -215,6 +215,9 @@ def print_spelling_note(stats: dict, style: Style) -> None:
         n = stats["places"]
         words = "word" if n == 1 else "words"
         print(f"  {style.dim(f'{n} capitalised {words} accepted as place names (GeoNames)')}")
+    if stats.get("british") is False:
+        print(f"  {style.yellow('tip:')} {style.dim('run')} tex-check --update-dictionary "
+              f"{style.dim('for a larger British dictionary as a second opinion')}")
 
 
 def print_summary(run: Run, groups: list[Group], style: Style) -> None:

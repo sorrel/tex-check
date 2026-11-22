@@ -26,6 +26,8 @@ class Options:
     spell_bold: bool = False
     spell_capitals: bool = False
     personal_words: bool = True
+    british: bool = True
+    macos: bool = True
 
 
 class Located:
@@ -106,6 +108,8 @@ def settings_for(path: Path, options: Options, gazetteer: set[str] | None) -> Se
         spell_bold_names=options.spell_bold,
         spell_capitals=options.spell_capitals,
         places=gazetteer,
+        british=options.british,
+        macos=options.macos,
     )
 
 

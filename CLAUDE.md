@@ -33,6 +33,15 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
 - `groups.reason`: plain-words reason per word, from aspell's suggestions
   (missing apostrophe, capitals, one/two words, accent, American, British
   form aspell lacks, plural only, macro slip).
+- `dictionaries.py`: second opinions on words aspell rejects: SCOWL 70 GB
+  -ise (`--update-dictionary` → `~/.local/share/tex-check/british.txt`) and
+  macOS's NSSpellChecker en_GB via one bounded `osascript` call. A word
+  either knows goes to the "elsewhere" group unless its reason is in
+  `groups.STRONG_REASONS`. macOS also accepts words "learned" on this Mac,
+  so its yes is weak. `tests/conftest.py` turns both off for other tests.
+- `differences.py`: says how each suggestion differs ("missing a c", "extra
+  l", "r and c swapped") and marks the changed letters, since a doubled or
+  missing letter is easy to miss by eye.
 - `web/`: `tex-check FILE --web`, mail-triage's pattern on a small scale.
   stdlib `http.server` on 127.0.0.1:8766, per-run token (URL once, then
   header; cookie for assets), Host/Origin checks (`security.py`, adapted

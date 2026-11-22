@@ -13,6 +13,10 @@ Left alone by default, to keep the list to likely mistakes:
   list and any --words files;
 * capitalised words that aspell does not know but the place-name gazetteer
   does (see places.py; built with `tex-check --update-places`).
+
+Words aspell rejects are also put to two larger dictionaries (see
+dictionaries.py). They are still findings; the note of which dictionary
+knew each is left in the stats for `groups` to sort by.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+from .. import dictionaries
 from ..findings import Finding
 from ..places import is_place
 from ..wordlists import load as load_wordlists
@@ -115,10 +120,14 @@ def run(prose, settings) -> list[Finding]:
     places = {w for w in unknown if settings.places and is_place(w, settings.places)}
     for word in places:
         del unknown[word]
+    british = dictionaries.load() if settings.british else None
+    macos = dictionaries.ask_macos(sorted(unknown)) if settings.macos else set()
     settings.stats[NAME] = {
         "places": len(places),
         "gazetteer": settings.places is not None,
         "words": len(unknown),
+        "british": british is not None,
+        "elsewhere": dictionaries.second_opinions(sorted(unknown), british, macos),
     }
     return [
         Finding(NAME, m.start(), m.end(), word, suggestions=unknown[word], group=word)

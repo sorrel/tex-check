@@ -15,7 +15,7 @@
 "use strict";
 
 const TOKEN = document.querySelector('meta[name="token"]').content;
-const SPELLING = ["typos", "other", "quotes", "bold", "names", "variants", "spelling"];
+const SPELLING = ["typos", "other", "quotes", "bold", "names", "variants", "elsewhere", "spelling"];
 const DONE = "__done__";
 const POLL_MS = 2000;
 const ACTIONS = { ok: "Marked OK", book: "Added for this book", personal: "Added everywhere" };
