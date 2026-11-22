@@ -40,7 +40,28 @@ tex-check book.tex --web                # in the browser (see below)
 Spelling findings are sorted into groups, likely typos first: **Likely
 typos**, **In quotations** (dialogue, dialect), **Foreign and bold
 phrases**, **Names** and **Variants** (*ok*/OK, *heathland*/heath land),
-plus **Other unknown words** for anything aspell has no suggestion for.
+plus **Other unknown words** for anything aspell has no suggestion for,
+and **Known to other dictionaries** last.
+
+aspell's British dictionary is small, so two larger ones give a second
+opinion on the words it rejects: **macOS's own British spellchecker** (the
+one Texifier underlines with) and a **larger British word list** (SCOWL,
+from wordlist.aspell.net; download it once with
+`tex-check --update-dictionary`). A word either knows moves to *Known to
+other dictionaries*, saying which knew it. A word with a strong reason
+stays put even so: macOS accepts *Ziggys* and *practiced*, but a missing
+apostrophe or an American spelling is still worth a look. `--no-macos` and
+`--no-british` turn either off.
+
+Every suggestion says how it differs from your word, and the changed
+letters are underlined, because an extra or missing letter is easy to miss
+by eye:
+
+```
+  lyrca        → Lycra (r and c swapped, capital L), Lyra, lyric
+  laundrette   → launderette (missing an e)
+  seatbelt     → seat belt (space added)
+```
 Web addresses are not spell-checked.
 
 Each word also says **why** it was flagged, worked out from aspell's
@@ -108,8 +129,8 @@ Keys: `j`/`k` move, `o` open in Texifier, `x` OK, `b` add for this book,
 `e` add everywhere.
 
 Save in Texifier and the page re-checks 30 seconds after the last save;
-each further save restarts the wait, or press **Re-check now**. Stop it
-with ctrl-C; it also stops by itself 30 minutes after the page is closed.
+each further save restarts the wait, or press **Re-check now**. Stop it by
+typing `q` (or `quit`, `exit`) and Return, or ctrl-C; it also stops by itself 30 minutes after the page is closed.
 
 The server listens on 127.0.0.1 only and every request needs the token in
 the address it opens, so no other web page can press its buttons.
@@ -122,9 +143,11 @@ the address it opens, so no other web page can press its buttons.
 | `tex-check-done.jsonl` | beside the `.tex` | every OK, add and undo (append-only) |
 | `words.txt` | this repository | your accepted words for every book |
 | `places.txt` | `~/.local/share/tex-check/` | the GeoNames place names |
+| `british.txt` | `~/.local/share/tex-check/` | the larger British word list |
 
-Nothing is sent anywhere: the only network use is the one-off GeoNames
-download.
+Nothing is sent anywhere: the only network use is the two one-off
+downloads (GeoNames and the British word list). macOS's spellchecker runs
+on this Mac.
 
 ## Jump to a finding in Texifier (macOS, optional)
 

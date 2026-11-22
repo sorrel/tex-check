@@ -15,7 +15,7 @@
 "use strict";
 
 const TOKEN = document.querySelector('meta[name="token"]').content;
-const SPELLING = ["typos", "other", "quotes", "bold", "names", "variants", "spelling"];
+const SPELLING = ["typos", "other", "quotes", "bold", "names", "variants", "elsewhere", "spelling"];
 const DONE = "__done__";
 const POLL_MS = 2000;
 const ACTIONS = { ok: "Marked OK", book: "Added for this book", personal: "Added everywhere" };
@@ -191,16 +191,7 @@ function drawItem(item, firstIndex) {
     head.append(el("span", { class: "word" }, item.word));
     if (item.uses.length > 1) head.append(el("span", { class: "times" }, `×${item.uses.length}`));
     if (item.reason) head.append(el("span", { class: "reason" }, item.reason));
-    const sugg = el("span", { class: "suggestions" }, "→ ");
-    if (item.suggestions.length) {
-      item.suggestions.forEach((s, i) => {
-        if (i) sugg.append(", ");
-        sugg.append(el("b", {}, s));
-      });
-    } else {
-      sugg.append("no suggestions");
-    }
-    head.append(sugg);
+    head.append(drawSuggestions(item.suggestions));
   } else {
     head.append(el("span", { class: "message" }, item.message));
     if (item.note) head.append(el("span", { class: "note" }, item.note));
@@ -217,6 +208,23 @@ function drawItem(item, firstIndex) {
     ));
   }
   return li;
+}
+
+// Each suggestion with the letters that differ from the word marked, and
+// the difference said in words ("missing a c"): an extra or missing letter
+// is easy to miss by eye.
+function drawSuggestions(suggestions) {
+  const list = el("ul", { class: "suggestions" });
+  if (!suggestions.length) {
+    list.append(el("li", { class: "quiet" }, "no suggestions"));
+    return list;
+  }
+  for (const s of suggestions) {
+    const word = el("span", { class: "suggestion" });
+    for (const [text, changed] of s.parts) word.append(changed ? el("span", { class: "changed" }, text) : text);
+    list.append(el("li", {}, "→ ", word, s.difference ? el("span", { class: "difference" }, s.difference) : null));
+  }
+  return list;
 }
 
 function drawUse(use, index) {

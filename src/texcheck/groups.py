@@ -28,7 +28,12 @@ SPELLING_GROUPS = [
     ("bold", "Foreign and bold phrases", "set in bold, often not English"),
     ("names", "Names", "capitalised mid-sentence"),
     ("variants", "Variants", "known in another case, spacing or accent"),
+    ("elsewhere", "Known to other dictionaries", "aspell lacks them; a larger dictionary has them"),
 ]
+
+#: Reasons that outweigh another dictionary's say-so: macOS accepts
+#: "Ziggys" and "practiced", but they are still worth a look.
+STRONG_REASONS = {"missing apostrophe?", "capitals differ", "American spelling?"}
 
 _TITLES = {key: (title, blurb) for key, title, blurb in SPELLING_GROUPS}
 
@@ -146,7 +151,8 @@ def _starts_sentence(prose: Prose, at: int) -> bool:
 
 
 def classify(word: str, uses: list[Located], spans: list[tuple[int, int]],
-             suggestions: list[str], prose: Prose, source: Source) -> tuple[str, str]:
+             suggestions: list[str], prose: Prose, source: Source,
+             elsewhere: str = "") -> tuple[str, str]:
     """The group key for one unknown word, and a note to show beside it.
 
     `spans` are the word's uses as prose offsets. The rules run in this
@@ -163,6 +169,9 @@ def classify(word: str, uses: list[Located], spans: list[tuple[int, int]],
         return "quotes", ""
     if all(prose.bold[start] for start, _ in spans):
         return "bold", ""
+    # `elsewhere` says which larger dictionary knows the word, if any.
+    if elsewhere and reason(word, suggestions, "") not in STRONG_REASONS:
+        return "elsewhere", elsewhere
     if any(fold(s) == fold(word) for s in suggestions):
         return "variants", ""
     if word[0].isupper() and any(not _starts_sentence(prose, start) for start, _ in spans):
@@ -179,10 +188,12 @@ def _spelling_groups(run: Run, findings: list) -> list[Group]:
         by_word[finding.group].append(finding)
 
     groups = {key: Group(key, title, blurb) for key, title, blurb in SPELLING_GROUPS}
+    known = run.stats.get("spelling", {}).get("elsewhere", {})
     for word, found in sorted(by_word.items(), key=lambda kv: kv[1][0].start):
         uses = [Located(f, run.prose, run.source) for f in found]
         spans = [(f.start, f.end) for f in found]
-        key, note = classify(word, uses, spans, found[0].suggestions, run.prose, run.source)
+        key, note = classify(word, uses, spans, found[0].suggestions, run.prose, run.source,
+                             known.get(word, ""))
         suggestions = found[0].suggestions
         groups[key].items.append(Item(
             f"spelling:{word}", "spelling", word, word, note, suggestions, uses,

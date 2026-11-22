@@ -20,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .. import donelog, wordlists
+from ..differences import describe, marked
 from ..groups import Group, Item, group_findings
 from ..opener import open_at
 from ..run import CONTEXT_WIDTH, Located, Options, Run, check_file, context_of, snippet_parts
@@ -143,7 +144,9 @@ class Session:
     def _item_payload(self, item: Item) -> dict:
         return {
             "id": self._item_ids[id(item)], "word": item.word, "message": item.message,
-            "note": item.note, "reason": item.reason, "suggestions": item.suggestions,
+            "note": item.note, "reason": item.reason,
+            "suggestions": [_suggestion(item.word, s) for s in item.suggestions]
+            if item.word else item.suggestions,
             "uses": [self._use_payload(use) for use in item.uses],
         }
 
@@ -257,6 +260,15 @@ class Session:
             wordlists.remove_word(target, entry.word)
             self.watcher.rebaseline(target)
         self.recheck()
+
+
+def _suggestion(word: str, suggestion: str) -> dict:
+    """A suggestion with its changed letters marked and its difference in words."""
+    return {
+        "text": suggestion,
+        "parts": [[text, changed] for text, changed in marked(word, suggestion)],
+        "difference": describe(word, suggestion),
+    }
 
 
 def _same(word: str) -> str:

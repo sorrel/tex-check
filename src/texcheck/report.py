@@ -19,6 +19,7 @@ import shutil
 import os
 from pathlib import Path
 
+from .differences import describe, marked
 from .groups import SPELLING_GROUPS, Group, Item
 from .prose import Source
 from .run import Located, Run, snippet_parts
@@ -38,6 +39,7 @@ class Style:
     def yellow(self, t): return self._wrap("93", t)
     def cyan(self, t): return self._wrap("96", t)
     def green(self, t): return self._wrap("92", t)
+    def underline(self, t): return self._wrap("4;1", t)
 
 
 def display_path(path: Path, cwd: Path) -> str:
@@ -168,9 +170,27 @@ def _print_finding(item: Item, source: Source, style: Style, layout: _Layout) ->
     print(f"{layout.indent}{snippet(source, loc, style, layout.width - len(layout.indent))}")
 
 
+def underline_changes(word: str, suggestion: str, style: Style) -> str:
+    """The suggestion with the letters that differ from the word underlined."""
+    return "".join(style.underline(text) if changed else text
+                   for text, changed in marked(word, suggestion))
+
+
+def _suggestions(item: Item, style: Style) -> str:
+    """aspell's suggestions, changed letters underlined, and the first one's
+    difference said in words: "Ecclesall (missing a c)"."""
+    if not item.suggestions:
+        return "no suggestions"
+    shown = [underline_changes(item.word, s, style) for s in item.suggestions]
+    difference = describe(item.word, item.suggestions[0])
+    if difference:
+        shown[0] += f" {style.dim('(' + difference + ')')}"
+    return ", ".join(shown)
+
+
 def _print_word(item: Item, source: Source, style: Style, layout: _Layout) -> None:
     first = item.uses[0]
-    sugg = ", ".join(item.suggestions) or "no suggestions"
+    sugg = _suggestions(item, style)
     count = f"×{len(item.uses)}" if len(item.uses) > 1 else ""
     print(
         f"  {style.dim(first.where(layout.path).ljust(layout.where))}  "
@@ -195,6 +215,9 @@ def print_spelling_note(stats: dict, style: Style) -> None:
         n = stats["places"]
         words = "word" if n == 1 else "words"
         print(f"  {style.dim(f'{n} capitalised {words} accepted as place names (GeoNames)')}")
+    if stats.get("british") is False:
+        print(f"  {style.yellow('tip:')} {style.dim('run')} tex-check --update-dictionary "
+              f"{style.dim('for a larger British dictionary as a second opinion')}")
 
 
 def print_summary(run: Run, groups: list[Group], style: Style) -> None:

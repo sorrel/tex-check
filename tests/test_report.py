@@ -82,3 +82,48 @@ def test_report_says_how_many_ok(checked, tmp_path, capsys):
     marked = group_findings(run, ok={("spelling", use.text, context_of(run.source, use))})
     print_report(run, marked, Style(colour=False), cwd=tmp_path)
     assert "1 marked OK" in capsys.readouterr().out
+
+
+@needs_aspell
+def test_top_suggestion_says_how_it_differs(checked, tmp_path, capsys):
+    run, groups = checked
+    print_report(run, groups, Style(colour=False), cwd=tmp_path)
+    assert "Lycra (r and c swapped, capital L)" in capsys.readouterr().out
+
+
+def test_changed_letters_are_underlined():
+    from texcheck.report import underline_changes
+    shown = underline_changes("Eclesall", "Ecclesall", Style(colour=True))
+    assert shown == "E\033[4;1mc\033[0mclesall"
+
+
+def test_tip_to_download_the_larger_list(capsys):
+    from texcheck.report import print_spelling_note
+    print_spelling_note({"gazetteer": True, "british": False}, Style(colour=False))
+    assert "tex-check --update-dictionary" in capsys.readouterr().out
+    print_spelling_note({"gazetteer": True, "british": True}, Style(colour=False))
+    assert "update-dictionary" not in capsys.readouterr().out
+
+
+def test_update_dictionary_command(monkeypatch, tmp_path, capsys):
+    from texcheck import dictionaries
+    from texcheck.cli import main
+    monkeypatch.setattr(dictionaries, "update", lambda: 166_000)
+    assert main(["--update-dictionary"]) == 0
+    assert "166,000" in capsys.readouterr().out
+
+
+def test_no_macos_flag_reaches_the_options(monkeypatch, tmp_path):
+    from texcheck import cli
+    tex = tmp_path / "doc.tex"
+    tex.write_text("Hello.\n")
+    seen = []
+
+    def fake_check(path, stages, options, gazetteer):
+        seen.append(options)
+        raise SystemExit(0)
+
+    monkeypatch.setattr(cli, "check_file", fake_check)
+    with pytest.raises(SystemExit):
+        cli.main([str(tex), "--no-macos", "--no-british"])
+    assert (seen[0].macos, seen[0].british) == (False, False)

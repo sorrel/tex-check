@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import __version__, donelog, places, wordlists
+from . import __version__, dictionaries, donelog, places, wordlists
 from .checks import STAGES, resolve
 from .groups import group_findings
 from .report import Style, as_json, dump_json, print_report
@@ -67,6 +67,12 @@ def parse_args(argv):
     p.add_argument("--countries", default=",".join(places.DEFAULT_COUNTRIES), metavar="CC,..",
                    help="with --update-places: countries to include in full, as ISO codes "
                    "(default: GB,IE; world towns are always included)")
+    p.add_argument("--no-british", action="store_true",
+                   help="do not ask the larger British word list")
+    p.add_argument("--no-macos", action="store_true",
+                   help="do not ask macOS's British spellchecker")
+    p.add_argument("--update-dictionary", action="store_true",
+                   help="download the larger British word list (SCOWL, about 1.6 MB)")
     p.add_argument("--list-unknown", action="store_true",
                    help="print each unknown word once, plain, for building a word list")
     p.add_argument("--web", action="store_true",
@@ -96,6 +102,8 @@ def main(argv=None) -> int:
     args = parse_args(argv)
     if args.update_places:
         return update_places(args.countries)
+    if args.update_dictionary:
+        return update_dictionary()
     if not args.files:
         print("tex-check: give a .tex file to check (see --help)", file=sys.stderr)
         return 2
@@ -117,6 +125,8 @@ def main(argv=None) -> int:
         spell_bold=args.spell_bold,
         spell_capitals=args.spell_capitals,
         personal_words=not args.no_personal_words,
+        british=not args.no_british,
+        macos=not args.no_macos,
     )
     if args.web:
         return web(args.files[0], stages, options, gazetteer, args, style)
@@ -153,7 +163,7 @@ def main(argv=None) -> int:
 
 
 def web(path: Path, stages, options: Options, gazetteer, args, style: Style) -> int:
-    """Serve the browser view of one file until Ctrl-C."""
+    """Serve the browser view of one file until q, ctrl-C or idle."""
     import secrets
 
     from .web.routes import Router
@@ -171,14 +181,26 @@ def web(path: Path, stages, options: Options, gazetteer, args, style: Style) -> 
         print(f"{style.bold('tex-check')}  {style.cyan(path.name)}  {style.dim('in the browser')}")
         print(f"  {style.dim('Serving on')} {url}")
         what = "Open that address in a browser" if args.no_open else "Opening your browser…"
-        print(f"  {what}   {style.dim('ctrl-C to stop')}")
+        print(f"  {what}   {style.dim('type')} q {style.dim('and Return (or ctrl-C) to stop')}")
         print(flush=True)  # the server holds the terminal from here on
 
     try:
-        serve(router, port=args.port, open_browser=not args.no_open, on_ready=ready)
+        serve(router, port=args.port, open_browser=not args.no_open, on_ready=ready,
+              keyboard=sys.stdin if sys.stdin.isatty() else None)
     except OSError as err:
         print(f"tex-check: cannot serve on port {args.port}: {err.strerror or err}", file=sys.stderr)
         return 2
+    return 0
+
+
+def update_dictionary() -> int:
+    print("Downloading the larger British word list (SCOWL size 70, -ise) from wordlist.aspell.net…")
+    try:
+        count = dictionaries.update()
+    except OSError as err:
+        print(f"tex-check: download failed: {err}", file=sys.stderr)
+        return 2
+    print(f"Saved {count:,} words to {dictionaries.british_file()}")
     return 0
 
 

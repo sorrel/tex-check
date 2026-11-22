@@ -174,3 +174,15 @@ def test_all_uses_ok_removes_the_item(tmp_path, monkeypatch):
 def test_two_uses_on_one_short_line_are_two_places(tmp_path, monkeypatch):
     groups = _check(tmp_path, monkeypatch, "A lyrca, a lyrca.", mark="lyrca")
     assert len(groups["typos"].items[0].uses) == 1
+
+
+def test_words_another_dictionary_knows_get_their_own_group(groups_of, monkeypatch):
+    from texcheck import dictionaries
+    monkeypatch.setattr(dictionaries, "ask_macos", lambda words, **kw: {"laundrette", "Ziggys", "practiced"})
+    groups = groups_of("We went to the laundrette, which Ziggys practiced in, and a lyrca.")
+    assert words_in(groups, "elsewhere") == ["laundrette"]
+    assert groups["elsewhere"].items[0].reason == "known to macOS"
+    # Strong reasons win over another dictionary's say-so.
+    assert "Ziggys" in words_in(groups, "names")
+    assert "practiced" in words_in(groups, "typos")
+    assert "lyrca" in words_in(groups, "typos")

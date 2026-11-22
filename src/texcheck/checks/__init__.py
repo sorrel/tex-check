@@ -25,6 +25,8 @@ class Settings:
     spell_bold_names: bool = False
     spell_capitals: bool = False
     places: set[str] | None = None  # gazetteer; None when not downloaded
+    british: bool = True  # ask the larger British list (if downloaded)
+    macos: bool = True  # ask macOS's British spellchecker
     stats: dict = field(default_factory=dict)  # stages leave figures here for the report
 
 
