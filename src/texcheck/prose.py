@@ -84,6 +84,14 @@ MACROS = {
     "pounds": "£", "textpounds": "£", "euro": "€", "S": "§", "P": "¶",
 }
 
+#: Every command the extractor knows by name, three letters or more. Used to
+#: spot a missing backslash (`bsq{word}` read as "bsqword"); single letters
+#: such as \o would match the start of half the dictionary.
+KNOWN_COMMANDS = frozenset(
+    name for name in (*DROP_ARGS, *HEADINGS, *NOTES, *BREAKS, *BOLD, *QUOTES, *MACROS)
+    if len(name) >= 3 and name.isalpha()
+)
+
 # Environments whose whole content is skipped.
 SKIP_ENVS = {
     "verbatim", "Verbatim", "lstlisting", "minted", "comment", "equation",
