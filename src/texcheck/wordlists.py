@@ -73,3 +73,22 @@ def append_word(path: Path, word: str) -> bool:
         existing += "\n"
     path.write_text(existing + word + "\n", encoding="utf-8")
     return True
+
+
+def remove_word(path: Path, word: str) -> bool:
+    """Take `word` out of the list at `path` (for undo). False if it was not there.
+
+    Comments, blank lines and other words are kept as they are.
+    """
+    if not path.is_file():
+        return False
+    target = normalise(word).lower()
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    kept = [
+        line for line in lines
+        if normalise(line.split("#", 1)[0].strip()).lower() != target
+    ]
+    if len(kept) == len(lines):
+        return False
+    path.write_text("".join(kept), encoding="utf-8")
+    return True
