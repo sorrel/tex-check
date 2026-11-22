@@ -87,6 +87,12 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
   machine, so ask before choosing that.
 - Near-repeats (the same longer word twice within a few lines) could
   become a stage.
+- Layout checks (asked for 22 November 2026): lines that start or end with
+  a lone "I" (too many in a paragraph or on a page); the same word at the
+  start or end of adjacent lines (stacks); a paragraph whose last line is
+  one word (runts). These depend on TeX's line and page breaks, so they need
+  the typeset PDF (pdftotext, or SyncTeX to map back to line:col), not the
+  source. Thresholds are the user's to set.
 
 ## Running
 
