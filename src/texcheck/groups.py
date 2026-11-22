@@ -42,7 +42,11 @@ _SENTENCE_END = ".!?\n"
 
 @dataclass
 class Item:
-    """One row: a misspelt word with all its uses, or one other finding."""
+    """One row: a misspelt word with all its uses, or one other finding.
+
+    `reason` says in plain words why a word is flagged; for other stages the
+    message already does, and it is empty.
+    """
 
     key: str
     stage: str
@@ -51,6 +55,7 @@ class Item:
     note: str
     suggestions: list[str]
     uses: list[Located]
+    reason: str = ""
 
 
 @dataclass
@@ -67,6 +72,55 @@ def fold(word: str) -> str:
     plain = unicodedata.normalize("NFKD", word)
     plain = "".join(ch for ch in plain if not unicodedata.combining(ch))
     return plain.lower().replace("-", "").replace(" ", "")
+
+
+#: British forms of American endings: (American pattern, British replacement).
+#: A word is "American spelling?" when aspell suggests the British form.
+_BRITISH = [
+    (re.compile(r"iz(e|es|ed|ing|ation|ations|er|ers)$"), r"is\1"),
+    (re.compile(r"or(s|ful|fully|ed|ing|ite|ites|less)?$"), r"our\1"),
+    (re.compile(r"ter(s)?$"), r"tre\1"),
+    (re.compile(r"og(s)?$"), r"ogue\1"),
+    (re.compile(r"ced$"), "sed"),
+    (re.compile(r"cing$"), "sing"),
+    (re.compile(r"(?<=[a-z])or(?=[a-z]+$)"), "our"),  # colorful, honorable
+]
+
+
+#: The same, the other way: British forms aspell's en_GB dictionary lacks
+#: but whose American form it suggests (synthesisers → synthesizers).
+_AMERICAN = [
+    (re.compile(r"is(e|es|ed|ing|er|ers|ation|ations)$"), r"iz\1"),
+    (re.compile(r"our(s|ful|ed|ing|less)?$"), r"or\1"),
+    (re.compile(r"(?<=[a-z])our(?=[a-z]+$)"), "or"),
+]
+
+
+def reason(word: str, suggestions: list[str], note: str) -> str:
+    """Why `word` is flagged, worked out from aspell's suggestions.
+
+    aspell only ever says "unknown, and here are the nearest words". Most
+    of the time the nearest words show what is wrong; this says so plainly.
+    """
+    if note:
+        return note
+    lower = {s.replace("’", "'").lower() for s in suggestions}
+    if word.endswith("s") and {(word[:-1] + "'s").lower(), (word + "'").lower()} & lower:
+        return "missing apostrophe?"
+    if word.lower() in lower:
+        return "capitals differ"
+    for suggestion in suggestions:
+        if fold(suggestion) == fold(word) and suggestion.replace(" ", "").replace("-", "") != suggestion:
+            return "usually two words" if " " in suggestion else "usually hyphenated"
+    if any(fold(s) == fold(word) for s in suggestions):
+        return "accent differs"
+    for pattern, british in _BRITISH:
+        if pattern.search(word) and pattern.sub(british, word).lower() in lower:
+            return "American spelling?"
+    for pattern, american in _AMERICAN:
+        if pattern.search(word) and pattern.sub(american, word).lower() in lower:
+            return "British spelling; aspell knows only the American"
+    return "not in the dictionary"
 
 
 def _macro_slip(word: str, uses: list[Located], source: Source) -> str | None:
@@ -126,9 +180,11 @@ def _spelling_groups(run: Run, findings: list) -> list[Group]:
         uses = [Located(f, run.prose, run.source) for f in found]
         spans = [(f.start, f.end) for f in found]
         key, note = classify(word, uses, spans, found[0].suggestions, run.prose, run.source)
-        groups[key].items.append(
-            Item(f"spelling:{word}", "spelling", word, word, note, found[0].suggestions, uses)
-        )
+        suggestions = found[0].suggestions
+        groups[key].items.append(Item(
+            f"spelling:{word}", "spelling", word, word, note, suggestions, uses,
+            reason(word, suggestions, note),
+        ))
     return [group for group in groups.values() if group.items]
 
 

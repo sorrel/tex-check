@@ -99,3 +99,42 @@ def test_display_order(groups_of):
 def test_empty_spelling_is_one_group(groups_of):
     groups = groups_of("All is well.")
     assert "spelling" in groups and groups["spelling"].items == []
+
+
+# ── reasons ─────────────────────────────────────────────────────────────────
+
+from texcheck.groups import reason  # noqa: E402
+
+
+@pytest.mark.parametrize(("word", "suggestions", "expected"), [
+    ("Ziggys", ["Ziggy's", "Ziggy", "Piggy's"], "missing apostrophe?"),
+    ("ok", ["OK", "OJ"], "capitals differ"),
+    ("heathland", ["heath land", "heath-land"], "usually two words"),
+    ("seatbelts", ["seat belts", "seat-belts"], "usually two words"),
+    ("ensuite", ["en suite", "en-suite"], "usually two words"),
+    ("ouija", ["Ouija"], "capitals differ"),
+    ("lyrca", ["Lycra", "Lyra"], "not in the dictionary"),
+    ("dénouement", ["denouement"], "accent differs"),
+    ("practiced", ["practices", "practice", "practised"], "American spelling?"),
+    ("advisors", ["advisers", "advises"], "not in the dictionary"),
+    ("colorful", ["colourful"], "American spelling?"),
+    ("realize", ["realise"], "American spelling?"),
+    ("center", ["centre"], "American spelling?"),
+    ("synthesisers", ["synthesises", "synthesizers"], "British spelling; aspell knows only the American"),
+    ("technicolour", ["Technicolor", "technicolor"], "British spelling; aspell knows only the American"),
+])
+def test_reasons(word, suggestions, expected):
+    assert reason(word, suggestions, "") == expected
+
+
+def test_hyphenated_reason_follows_the_first_matching_suggestion():
+    assert reason("cooperate", ["co-operate", "co operate"], "") == "usually hyphenated"
+
+
+def test_macro_slip_reason_is_its_note():
+    assert reason("bsqentertainment", [], "missing \\ before \\bsq?") == "missing \\ before \\bsq?"
+
+
+def test_items_carry_their_reason(groups_of):
+    item = groups_of("Dressed up in capes, in lyrca? No.")["typos"].items[0]
+    assert item.reason == "not in the dictionary"

@@ -109,6 +109,7 @@ class _Layout:
         )
         words = [item.word for g in groups for item in g.items if item.word]
         self.word = min(22, max(map(len, words), default=0))
+        self.reason = max((len(i.reason) for g in groups for i in g.items if i.word), default=0)
         # Context sits under the word, unless a long location (an absolute
         # path) would leave it too little room: then a fixed indent.
         self.indent = " " * (self.where + 4 if self.where + 4 <= width * 0.4 else 4)
@@ -185,11 +186,10 @@ def _print_word(item: Item, source: Source, style: Style, layout: _Layout) -> No
     first = item.uses[0]
     sugg = ", ".join(item.suggestions) or "no suggestions"
     count = f"×{len(item.uses)}" if len(item.uses) > 1 else ""
-    note = f"  {style.yellow('(' + item.note + ')')}" if item.note else ""
     print(
         f"  {style.dim(first.where(layout.path).ljust(layout.where))}  "
         f"{style.red(item.word.ljust(layout.word))} {style.dim(count.ljust(4))} "
-        f"{style.cyan('→')} {sugg}{note}"
+        f"{style.yellow(item.reason.ljust(layout.reason))}  {style.cyan('→')} {sugg}"
     )
     print(f"{layout.indent}{snippet(source, first, style, layout.width - len(layout.indent))}")
     others = sorted({use.line for use in item.uses[1:]} - {first.line})
