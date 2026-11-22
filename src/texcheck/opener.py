@@ -140,6 +140,37 @@ def parse_location(args: list[str]) -> tuple[Path, int, int]:
     return Path(parts[0]), *(numbers + [1, 1])[:2]
 
 
+def open_at(path: Path, line: int, col: int, app: str = APP, run=subprocess.run) -> str | None:
+    """Open `path` in `app` with the text at line:col selected.
+
+    Returns None on success, or a one-line reason it could not be done.
+    `run` is subprocess.run, replaceable in tests.
+    """
+    if not path.is_file():
+        return f"no such file: {path}"
+    if path.suffix.lower() != ".tex":
+        result = run(["open", str(path)], capture_output=True, text=True)
+        return None if result.returncode == 0 else f"could not open {path.name}"
+
+    phrase = unique_phrase(path.read_text(encoding="utf-8", errors="replace"), line, col)
+    opened = run(["open", "-a", app, str(path)], capture_output=True, text=True)
+    if opened.returncode != 0:
+        return f"could not open {path.name} in {app}: {opened.stderr.strip()}"
+    if not phrase:  # an empty line: opening the file is the best we can do
+        return None
+    result = run(
+        ["osascript", "-e", FIND_SCRIPT.format(app=app), path.name, phrase],
+        capture_output=True, text=True,
+    )
+    if result.returncode == 0:
+        return None
+    reason = f"opened {path.name}, but could not jump to line {line}: {result.stderr.strip()}"
+    if "assistive access" in result.stderr or "-1719" in result.stderr:
+        reason += (" Allow it in System Settings › Privacy & Security › Accessibility"
+                   " (turn on iTerm).")
+    return reason
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         prog="tex-check-open",
@@ -152,31 +183,16 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
 
     path, line, col = parse_location(args.location)
-    if not path.is_file():
-        print(f"tex-check-open: no such file: {path}", file=sys.stderr)
-        return 2
-    if path.suffix.lower() != ".tex":
-        return subprocess.call(["open", str(path)])
-
-    phrase = unique_phrase(path.read_text(encoding="utf-8", errors="replace"), line, col)
     if args.dry_run:
-        print(phrase)
+        if not path.is_file():
+            print(f"tex-check-open: no such file: {path}", file=sys.stderr)
+            return 2
+        print(unique_phrase(path.read_text(encoding="utf-8", errors="replace"), line, col))
         return 0
-
-    subprocess.run(["open", "-a", args.app, str(path)], check=True)
-    if not phrase:  # an empty line: opening the file is the best we can do
-        return 0
-    result = subprocess.run(
-        ["osascript", "-e", FIND_SCRIPT.format(app=args.app), path.name, phrase],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        print(f"tex-check-open: opened {path.name}, but could not jump to line {line}: "
-              f"{result.stderr.strip()}", file=sys.stderr)
-        if "assistive access" in result.stderr or "-1719" in result.stderr:
-            print("  Allow it in System Settings › Privacy & Security › Accessibility "
-                  "(turn on iTerm).", file=sys.stderr)
-        return 1
+    error = open_at(path, line, col, app=args.app)
+    if error:
+        print(f"tex-check-open: {error}", file=sys.stderr)
+        return 2 if error.startswith("no such file") else 1
     return 0
 
 
