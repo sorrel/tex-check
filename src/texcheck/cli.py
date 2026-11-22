@@ -7,10 +7,9 @@ import sys
 from pathlib import Path
 
 from . import __version__, places, wordlists
-from .checks import STAGES, Settings, resolve
-from .checks.spelling import SpellerMissing
-from .prose import Source, extract
+from .checks import STAGES, resolve
 from .report import Style, as_json, dump_json, print_report
+from .run import Options, check_file
 
 EPILOG = f"""\
 stages (run in this order):
@@ -86,13 +85,6 @@ def choose_stages(args):
     return resolve(names)
 
 
-def read(path: Path) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        return path.read_text(encoding="latin-1")
-
-
 def main(argv=None) -> int:
     args = parse_args(argv)
     if args.update_places:
@@ -108,6 +100,13 @@ def main(argv=None) -> int:
 
     gazetteer = None if args.no_places else places.load()
     style = Style(colour=not args.no_colour and not args.json and sys.stdout.isatty())
+    options = Options(
+        dictionary=args.dict,
+        extra_wordlists=tuple(args.words),
+        spell_bold=args.spell_bold,
+        spell_capitals=args.spell_capitals,
+        personal_words=not args.no_personal_words,
+    )
     any_findings = False
     json_items: list[dict] = []
     unknown_words: set[str] = set()
@@ -116,38 +115,19 @@ def main(argv=None) -> int:
         if not path.is_file():
             print(f"tex-check: no such file: {path}", file=sys.stderr)
             return 2
-        source = Source(read(path), str(path))
-        prose = extract(source.text)
-
-        lists = [wordlists.book_file(path)]
-        if not args.no_personal_words:
-            lists.append(wordlists.personal_file())
-        settings = Settings(
-            dictionary=args.dict,
-            wordlists=[f for f in lists if f.is_file()] + args.words,
-            spell_bold_names=args.spell_bold,
-            spell_capitals=args.spell_capitals,
-            places=gazetteer,
-        )
-
-        results = []
-        for stage in stages:
-            try:
-                findings = stage.run(prose, settings)
-            except SpellerMissing as err:
-                results.append((stage, str(err)))
-                continue
-            any_findings |= bool(findings)
-            if stage.NAME == "spelling":
-                unknown_words |= {f.group for f in findings}
-            results.append((stage, findings))
+        run = check_file(path, stages, options, gazetteer)
+        for stage, outcome in run.results:
+            if isinstance(outcome, list):
+                any_findings |= bool(outcome)
+                if stage.NAME == "spelling":
+                    unknown_words |= {f.group for f in outcome}
 
         if args.list_unknown:
             continue
         if args.json:
-            json_items += as_json(path, source, prose, results)
+            json_items += as_json(path, run.source, run.prose, run.results)
         else:
-            print_report(path, source, prose, results, style, settings.stats)
+            print_report(path, run.source, run.prose, run.results, style, run.stats)
 
     if args.list_unknown:
         for word in sorted(unknown_words, key=str.lower):

@@ -13,8 +13,8 @@ import json
 import shutil
 from collections import defaultdict
 
-from .findings import Finding
-from .prose import Prose, Source
+from .prose import Source
+from .run import Located
 
 CONTEXT = 38  # characters of context either side of a finding
 
@@ -32,20 +32,6 @@ class Style:
     def yellow(self, t): return self._wrap("93", t)
     def cyan(self, t): return self._wrap("96", t)
     def green(self, t): return self._wrap("92", t)
-
-
-class Located:
-    """A finding with its source position worked out."""
-
-    def __init__(self, f: Finding, prose: Prose, source: Source):
-        self.finding = f
-        self.start, self.end = prose.source_span(f.start, f.end)
-        self.line, self.col = source.line_col(self.start)
-        self.end_line, self.end_col = source.line_col(self.end)
-        self.text = source.text[self.start : self.end]
-
-    def where(self, path: str) -> str:
-        return f"{path}:{self.line}:{self.col}"
 
 
 def snippet(source: Source, loc: Located, style: Style, width: int) -> str:
