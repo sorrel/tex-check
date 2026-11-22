@@ -62,3 +62,22 @@ def test_web_takes_one_file(tmp_path, capsys):
     two.write_text("y")
     assert main([str(one), str(two), "--web"]) == 2
     assert "--web takes one file" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("typed", ["q\n", "quit\n", "EXIT\n", "  q  \n"])
+def test_typing_quit_stops_the_server(typed):
+    import io
+
+    from texcheck.web.server import listen_for_quit
+    stopped = []
+    listen_for_quit(io.StringIO("hello\n" + typed + "more\n"), lambda: stopped.append(True))
+    assert stopped == [True]
+
+
+def test_other_input_does_not_stop_it():
+    import io
+
+    from texcheck.web.server import listen_for_quit
+    stopped = []
+    listen_for_quit(io.StringIO("query\nquite\n\n"), lambda: stopped.append(True))
+    assert stopped == []

@@ -17,6 +17,7 @@ from __future__ import annotations
 import threading
 import time
 import webbrowser
+from typing import TextIO
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qsl, urlsplit
@@ -71,13 +72,27 @@ def build_handler(router: Router) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
+#: What to type in the terminal to stop the server, then Return.
+QUIT_WORDS = frozenset({"q", "quit", "exit"})
+
+
+def listen_for_quit(stream: TextIO, stop: Callable[[], None]) -> None:
+    """Read lines until one is a quit word, then call `stop`. Returns at EOF."""
+    for line in stream:
+        if line.strip().lower() in QUIT_WORDS:
+            stop()
+            return
+
+
 def serve(router: Router, port: int = DEFAULT_PORT, open_browser: bool = True,
           idle_timeout: float = IDLE_TIMEOUT_SECONDS,
-          on_ready: Callable[[str, int, Callable[[], None]], None] | None = None) -> None:
+          on_ready: Callable[[str, int, Callable[[], None]], None] | None = None,
+          keyboard: TextIO | None = None) -> None:
     """Serve until Ctrl-C, or `idle_timeout` seconds without a request.
 
     Raises OSError if the port is taken. `on_ready` is told the URL, the
     port actually bound (for port 0) and a function that stops the server.
+    With `keyboard` (the terminal), typing q, quit or exit stops it too.
     """
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(router))
     actual_port = server.server_address[1]
@@ -93,6 +108,8 @@ def serve(router: Router, port: int = DEFAULT_PORT, open_browser: bool = True,
                 return
 
     threading.Thread(target=watchdog, daemon=True).start()
+    if keyboard is not None:
+        threading.Thread(target=listen_for_quit, args=(keyboard, server.shutdown), daemon=True).start()
     watcher.start()
     if on_ready is not None:
         on_ready(url, actual_port, server.shutdown)

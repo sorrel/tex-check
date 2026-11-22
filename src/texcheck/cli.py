@@ -153,7 +153,7 @@ def main(argv=None) -> int:
 
 
 def web(path: Path, stages, options: Options, gazetteer, args, style: Style) -> int:
-    """Serve the browser view of one file until Ctrl-C."""
+    """Serve the browser view of one file until q, ctrl-C or idle."""
     import secrets
 
     from .web.routes import Router
@@ -171,11 +171,12 @@ def web(path: Path, stages, options: Options, gazetteer, args, style: Style) -> 
         print(f"{style.bold('tex-check')}  {style.cyan(path.name)}  {style.dim('in the browser')}")
         print(f"  {style.dim('Serving on')} {url}")
         what = "Open that address in a browser" if args.no_open else "Opening your browser…"
-        print(f"  {what}   {style.dim('ctrl-C to stop')}")
+        print(f"  {what}   {style.dim('type')} q {style.dim('and Return (or ctrl-C) to stop')}")
         print(flush=True)  # the server holds the terminal from here on
 
     try:
-        serve(router, port=args.port, open_browser=not args.no_open, on_ready=ready)
+        serve(router, port=args.port, open_browser=not args.no_open, on_ready=ready,
+              keyboard=sys.stdin if sys.stdin.isatty() else None)
     except OSError as err:
         print(f"tex-check: cannot serve on port {args.port}: {err.strerror or err}", file=sys.stderr)
         return 2

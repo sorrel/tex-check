@@ -108,8 +108,8 @@ Keys: `j`/`k` move, `o` open in Texifier, `x` OK, `b` add for this book,
 `e` add everywhere.
 
 Save in Texifier and the page re-checks 30 seconds after the last save;
-each further save restarts the wait, or press **Re-check now**. Stop it
-with ctrl-C; it also stops by itself 30 minutes after the page is closed.
+each further save restarts the wait, or press **Re-check now**. Stop it by
+typing `q` (or `quit`, `exit`) and Return, or ctrl-C; it also stops by itself 30 minutes after the page is closed.
 
 The server listens on 127.0.0.1 only and every request needs the token in
 the address it opens, so no other web page can press its buttons.
