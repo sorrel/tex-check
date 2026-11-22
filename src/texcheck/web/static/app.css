@@ -195,6 +195,8 @@ main { padding: 2rem 2.5rem 6rem; max-width: calc(var(--measure) + 5rem); }
   margin-bottom: 1.25rem;
 }
 .error button { border: none; color: var(--hit); font-size: 1.1rem; }
+/* `display: flex` above would otherwise beat the hidden attribute. */
+.error[hidden] { display: none; }
 
 .keys { margin-top: 2rem; font-size: 0.8rem; }
 
