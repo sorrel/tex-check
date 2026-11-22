@@ -16,7 +16,23 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
 - `src/texcheck/checks/`: one module per stage (`NAME`, `TITLE`, `BLURB`,
   `run(prose, settings)`); order and registry in `checks/__init__.py`.
   New stage = new module + add it to `STAGES`.
+- `run.py`: `check_file`, the one run shared by the terminal, `--json` and
+  the browser, so all three agree. Word lists are read afresh on each run.
+- `groups.py`: sorts findings into groups. Spelling is split into likely
+  typos, other, in quotations, foreign/bold, names, variants (shown in that
+  order); the rules are evaluated in a different order (see `classify`).
 - `report.py`: terminal layout (shared `scripts/` conventions) and `--json`.
+- `wordlists.py`: the book's `tex-check-words.txt` and the personal
+  `words.txt` at this repo's root (found via the editable install; falls
+  back to `~/.local/share/tex-check/words.txt`).
+- `web/`: `tex-check FILE --web`, mail-triage's pattern on a small scale.
+  stdlib `http.server` on 127.0.0.1:8766, per-run token (URL once, then
+  header; cookie for assets), Host/Origin checks (`security.py`, adapted
+  from mail-triage). `routes.py` is a pure `Router.handle(Request)`;
+  `session.py` issues opaque ids per check (an old id gets 409, never a
+  wrong line); `watcher.py` polls mtimes and re-checks 30 s after the last
+  save (each save restarts the wait). Static files are hand-written, no
+  build step, no external requests.
 
 ## Decisions worth knowing
 
@@ -51,8 +67,18 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
   › Run command: `~/.local/bin/tex-check-open
   "\(semanticHistory.path)" "\(semanticHistory.lineNumber)"
   "\(semanticHistory.columnNumber)"`; non-.tex files fall back to `open`.
-- Per-document word list: `tex-check-words.txt` beside the .tex file, read
-  automatically. Bootstrap with `--list-unknown`, then prune the typos out.
+- Word lists: per book (`tex-check-words.txt` beside the .tex) for names,
+  dialect and invented words; personal (`words.txt` here, in git) for good
+  words everywhere. Bootstrap a book's with `--list-unknown`, then prune.
+- Grouping heuristics were tuned on a real 3,400-line book (22 November
+  2026:
+  209 words → typos 49, other 7, quotes 21, bold 20, names 55, variants
+  57). Variants must be tested after quotes and bold: aspell splits almost
+  anything ("secours" → "sec ours"). Likely typos are still mostly good
+  words aspell lacks, and hyphenated fragments (*pre*-, *-seater*); the
+  personal list absorbs the first.
+- Not yet confirmed: whether `--web`'s Open in Texifier inherits iTerm's
+  Accessibility permission (it should: the server is started from iTerm).
 
 ## Not done yet
 
@@ -66,4 +92,5 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
 
     uv tool install --editable .     # once; gives `tex-check` on PATH
     tex-check document.tex --only repeats
+    tex-check document.tex --web     # browser view
     uv run pytest                    # tests
