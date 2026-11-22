@@ -42,6 +42,38 @@ class Located:
         return f"{path}:{self.line}:{self.col}"
 
 
+#: Characters of context either side of a finding.
+CONTEXT = 38
+#: The width context is cut to when it is used to recognise a place (OK marks).
+CONTEXT_WIDTH = 110
+
+
+def snippet_parts(source: Source, loc: Located, width: int) -> tuple[bool, str, str, str, bool]:
+    """The source line around a finding, as plain text.
+
+    Returns (cut on the left, before, hit, after, cut on the right). The
+    browser view uses the parts as they are; `snippet` styles them.
+    """
+    line = source.line_text(loc.line)
+    left = loc.col - 1
+    right = min(len(line), left + max(1, loc.end - loc.start))
+    room = max(20, (width - (right - left)) // 2)
+    lo, hi = max(0, left - min(CONTEXT, room)), min(len(line), right + min(CONTEXT, room))
+    before, hit, after = line[lo:left], line[left:right], line[right:hi]
+    if not hit.strip():  # make whitespace visible
+        hit = hit.replace(" ", "␣").replace("\t", "⇥")
+    clean = lambda text: text.replace("\t", " ")
+    return lo > 0, clean(before), clean(hit), clean(after), hi < len(line)
+
+
+def context_of(source: Source, loc: Located) -> str:
+    """The context around a finding, with the finding bracketed: what an
+    OK mark is matched on. The brackets tell apart two uses of a word on
+    one short line, whose windows would otherwise be the same text."""
+    _, before, hit, after, _ = snippet_parts(source, loc, CONTEXT_WIDTH)
+    return f"{before}[[{hit}]]{after}"
+
+
 @dataclass
 class Run:
     """A file, as read, and what each stage made of it.

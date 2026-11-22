@@ -21,9 +21,8 @@ from pathlib import Path
 
 from .groups import SPELLING_GROUPS, Group, Item
 from .prose import Source
-from .run import Located, Run
+from .run import Located, Run, snippet_parts
 
-CONTEXT = 38  # characters of context either side of a finding
 
 
 class Style:
@@ -50,24 +49,6 @@ def display_path(path: Path, cwd: Path) -> str:
         return str(absolute)
 
 
-def snippet_parts(source: Source, loc: Located, width: int) -> tuple[bool, str, str, str, bool]:
-    """The source line around a finding, as plain text.
-
-    Returns (cut on the left, before, hit, after, cut on the right). The
-    browser view uses the parts as they are; `snippet` styles them.
-    """
-    line = source.line_text(loc.line)
-    left = loc.col - 1
-    right = min(len(line), left + max(1, loc.end - loc.start))
-    room = max(20, (width - (right - left)) // 2)
-    lo, hi = max(0, left - min(CONTEXT, room)), min(len(line), right + min(CONTEXT, room))
-    before, hit, after = line[lo:left], line[left:right], line[right:hi]
-    if not hit.strip():  # make whitespace visible
-        hit = hit.replace(" ", "␣").replace("\t", "⇥")
-    clean = lambda text: text.replace("\t", " ")
-    return lo > 0, clean(before), clean(hit), clean(after), hi < len(line)
-
-
 def snippet(source: Source, loc: Located, style: Style, width: int) -> str:
     """The source line around a finding, with the finding highlighted."""
     cut_left, before, hit, after, cut_right = snippet_parts(source, loc, width)
@@ -84,18 +65,21 @@ def heading(title: str, blurb: str, count: str, style: Style, width: int, colour
     return f"{style.bold(title)}  {style.dim(blurb)} {style.dim(rule)} {colour(count)}"
 
 
-def spelling_count(findings) -> str:
+_SPELLING_KEYS = {key for key, _, _ in SPELLING_GROUPS} | {"spelling"}
+
+
+def spelling_count(groups: list[Group]) -> tuple[str, int]:
     """Spelling counts words, not uses: "213 words (304 uses)"."""
-    words = len({f.group for f in findings})
+    items = [item for g in groups if g.key in _SPELLING_KEYS for item in g.items]
+    words, uses = len(items), sum(len(item.uses) for item in items)
     label = f"{words} word{'s' if words != 1 else ''}"
-    return label + (f" ({len(findings)} uses)" if len(findings) != words else "")
+    return label + (f" ({uses} uses)" if uses != words else ""), words
 
 
-def stage_count(stage, findings) -> tuple[str, int]:
-    """What a stage's heading and summary show."""
-    if stage.NAME == "spelling":
-        return spelling_count(findings), len({f.group for f in findings})
-    return str(len(findings)), len(findings)
+def ok_note(hidden: int, style: Style) -> None:
+    """The dim line saying how many findings are marked OK, if any."""
+    if hidden:
+        print(f"  {style.dim(f'{hidden} marked OK in tex-check-done.jsonl')}")
 
 
 class _Layout:
@@ -130,8 +114,8 @@ def print_report(run: Run, groups: list[Group], style: Style, cwd: Path) -> None
         if group.key in spelling_keys:
             if not spelling_started:
                 spelling_started = True
-                _print_spelling_heading(run, style, width)
-            if group.key != "spelling":
+                _print_spelling_heading(run, groups, style, width)
+            if group.key != "spelling" and group.items:
                 _print_subheading(group, style)
                 for item in group.items:
                     _print_word(item, run.source, style, layout)
@@ -144,6 +128,7 @@ def print_report(run: Run, groups: list[Group], style: Style, cwd: Path) -> None
             continue
         n = len(group.items)
         print(heading(group.title, group.blurb, str(n), style, width, style.green if n == 0 else None))
+        ok_note(group.hidden, style)
         if not group.items:
             print(f"  {style.dim('nothing found')}")
         for item in group.items:
@@ -153,18 +138,19 @@ def print_report(run: Run, groups: list[Group], style: Style, cwd: Path) -> None
     print_summary(run, groups, style)
 
 
-def _print_spelling_heading(run: Run, style: Style, width: int) -> None:
+def _print_spelling_heading(run: Run, groups: list[Group], style: Style, width: int) -> None:
     stage, outcome = next((s, o) for s, o in run.results if s.NAME == "spelling")
     if isinstance(outcome, str):
         print(heading(stage.TITLE, stage.BLURB, "skipped", style, width))
         print(f"  {style.yellow('skipped:')} {outcome}")
         print()
         return
-    label = spelling_count(outcome)
+    label, words = spelling_count(groups)
     print(heading(stage.TITLE, stage.BLURB, label, style, width,
-                  style.green if not outcome else None))
+                  style.green if not words else None))
     print_spelling_note(run.stats.get("spelling", {}), style)
-    if not outcome:
+    ok_note(sum(g.hidden for g in groups if g.key in _SPELLING_KEYS), style)
+    if not words:
         print(f"  {style.dim('nothing found')}")
     print()
 
@@ -213,17 +199,20 @@ def print_spelling_note(stats: dict, style: Style) -> None:
 
 def print_summary(run: Run, groups: list[Group], style: Style) -> None:
     rows: list[tuple[str, str, object]] = []
-    spelling_groups = {key for key, _, _ in SPELLING_GROUPS}
+    by_key = {group.key: group for group in groups}
     for stage, outcome in run.results:
         if isinstance(outcome, str):
             rows.append((stage.TITLE, "skipped", style.yellow))
             continue
-        label, n = stage_count(stage, outcome)
-        rows.append((stage.TITLE, label, style.green if n == 0 else style.yellow))
         if stage.NAME == "spelling":
+            label, n = spelling_count(groups)
+            rows.append((stage.TITLE, label, style.green if n == 0 else style.yellow))
             for group in groups:
-                if group.key in spelling_groups:
+                if group.key in _SPELLING_KEYS - {"spelling"} and group.items:
                     rows.append(("  " + group.title, str(len(group.items)), style.yellow))
+            continue
+        n = len(by_key[stage.NAME].items)
+        rows.append((stage.TITLE, str(n), style.green if n == 0 else style.yellow))
     title_width = max(len(title) for title, _, _ in rows)
     print(style.bold("Summary"))
     for title, value, colour in rows:

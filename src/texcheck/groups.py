@@ -18,7 +18,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from .prose import KNOWN_COMMANDS, Prose, Source
-from .run import Located, Run
+from .run import Located, Run, context_of
 
 #: Spelling's groups, in the order they are shown.
 SPELLING_GROUPS = [
@@ -65,6 +65,7 @@ class Group:
     blurb: str
     items: list[Item] = field(default_factory=list)
     skipped: str | None = None
+    hidden: int = 0  # uses left out because they are marked OK
 
 
 def fold(word: str) -> str:
@@ -188,8 +189,37 @@ def _spelling_groups(run: Run, findings: list) -> list[Group]:
     return [group for group in groups.values() if group.items]
 
 
-def group_findings(run: Run) -> list[Group]:
-    """Every stage's findings as groups, in run order, spelling split up."""
+def _drop_ok(groups: list[Group], run: Run, ok: set) -> list[Group]:
+    """Leave out every use marked OK; an item with none left goes too."""
+    for group in groups:
+        kept = []
+        for item in group.items:
+            uses = [u for u in item.uses
+                    if (item.stage, u.text, context_of(run.source, u)) not in ok]
+            group.hidden += len(item.uses) - len(uses)
+            if uses:
+                item.uses = uses
+                kept.append(item)
+        group.items = kept
+    return groups
+
+
+def group_findings(run: Run, ok: set | frozenset = frozenset()) -> list[Group]:
+    """Every stage's findings as groups, in run order, spelling split up.
+
+    `ok` holds the places marked OK (see donelog), which are left out.
+    """
+    groups = _all_groups(run)
+    if not ok:
+        return groups
+    groups = _drop_ok(groups, run, ok)
+    spelling = {key for key, _, _ in SPELLING_GROUPS}
+    # A spelling sub-group emptied by OK marks is kept only to carry its
+    # hidden count; views show sub-groups with items.
+    return [g for g in groups if g.key not in spelling or g.items or g.hidden]
+
+
+def _all_groups(run: Run) -> list[Group]:
     out: list[Group] = []
     for stage, outcome in run.results:
         if isinstance(outcome, str):

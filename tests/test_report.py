@@ -72,3 +72,13 @@ def test_long_paths_put_context_at_a_fixed_indent(checked, capsys, monkeypatch):
     context = [line for line in lines if "in lyrca and" in line]
     assert context and all(line.startswith("    ") and not line.startswith("     ") for line in context)
     assert all(len(line) <= 100 for line in context)
+
+
+@needs_aspell
+def test_report_says_how_many_ok(checked, tmp_path, capsys):
+    from texcheck.run import context_of
+    run, groups = checked
+    use = next(i for g in groups for i in g.items if i.word == "lyrca").uses[0]
+    marked = group_findings(run, ok={("spelling", use.text, context_of(run.source, use))})
+    print_report(run, marked, Style(colour=False), cwd=tmp_path)
+    assert "1 marked OK" in capsys.readouterr().out

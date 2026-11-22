@@ -138,3 +138,38 @@ def test_macro_slip_reason_is_its_note():
 def test_items_carry_their_reason(groups_of):
     item = groups_of("Dressed up in capes, in lyrca? No.")["typos"].items[0]
     assert item.reason == "not in the dictionary"
+
+
+# ── OK marks ────────────────────────────────────────────────────────────────
+
+from texcheck.run import context_of  # noqa: E402
+
+
+def _check(tmp_path, monkeypatch, text, mark=None):
+    """Check `text`; with `mark` (a word), first mark its first use OK."""
+    monkeypatch.setattr(wordlists, "personal_file", lambda: tmp_path / "personal.txt")
+    tex = tmp_path / "doc.tex"
+    tex.write_text("\\begin{document}\n" + text + "\n\\end{document}\n")
+    run = check_file(tex, STAGES, Options(), gazetteer=None)
+    ok = set()
+    if mark:
+        use = next(i for g in group_findings(run) for i in g.items if i.word == mark).uses[0]
+        ok = {("spelling", use.text, context_of(run.source, use))}
+    return {g.key: g for g in group_findings(run, ok=ok)}
+
+
+def test_ok_mark_hides_one_use(tmp_path, monkeypatch):
+    groups = _check(tmp_path, monkeypatch, "A lyrca here.\n\nThen lyrca there.", mark="lyrca")
+    [item] = groups["typos"].items
+    assert len(item.uses) == 1 and item.uses[0].line == 4
+    assert groups["typos"].hidden == 1
+
+
+def test_all_uses_ok_removes_the_item(tmp_path, monkeypatch):
+    groups = _check(tmp_path, monkeypatch, "Only one lyrca here.", mark="lyrca")
+    assert groups["typos"].items == [] and groups["typos"].hidden == 1
+
+
+def test_two_uses_on_one_short_line_are_two_places(tmp_path, monkeypatch):
+    groups = _check(tmp_path, monkeypatch, "A lyrca, a lyrca.", mark="lyrca")
+    assert len(groups["typos"].items[0].uses) == 1

@@ -20,12 +20,8 @@ from pathlib import Path
 from .. import wordlists
 from ..groups import Group, Item, group_findings
 from ..opener import open_at
-from ..report import snippet_parts
-from ..run import Located, Options, Run, check_file
+from ..run import CONTEXT_WIDTH, Located, Options, Run, check_file, snippet_parts
 from .watcher import Debouncer, Watcher
-
-#: Characters of context the page shows, as a terminal of this width would.
-CONTEXT_WIDTH = 110
 
 SCOPES = ("book", "personal")
 

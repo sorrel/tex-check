@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import __version__, places, wordlists
+from . import __version__, donelog, places, wordlists
 from .checks import STAGES, resolve
 from .groups import group_findings
 from .report import Style, as_json, dump_json, print_report
@@ -138,7 +138,7 @@ def main(argv=None) -> int:
 
         if args.list_unknown:
             continue
-        groups = group_findings(run)
+        groups = group_findings(run, ok=donelog.ok_marks(donelog.log_file(path)))
         if args.json:
             json_items += as_json(run, groups)
         else:
