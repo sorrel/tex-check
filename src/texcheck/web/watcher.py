@@ -68,25 +68,30 @@ class Watcher:
         self.on_due = on_due
         self.interval = interval
         self._last = self._snapshot()
+        self._lock = threading.Lock()  # poll (watcher thread) v. rebaseline (requests)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
     def _snapshot(self) -> dict[Path, int | None]:
         return {path: _mtime(path) for path in self.paths()}
 
-    def rebaseline(self) -> None:
-        """Take the files as they are now, without counting it as a save.
+    def rebaseline(self, path: Path) -> None:
+        """Take one file as it is now, without counting it as a save.
 
         For writes the session makes itself (adding a word), which are not
-        edits that need a re-check.
+        edits that need a re-check. Only that file: a save of the .tex made
+        just before, and not yet polled, must still start the countdown.
         """
-        self._last = self._snapshot()
+        with self._lock:
+            self._last[path] = _mtime(path)
 
     def poll(self) -> None:
         """One step: notice a save, and fire if the countdown has run out."""
-        now = self._snapshot()
-        if now != self._last:
+        with self._lock:
+            now = self._snapshot()
+            changed = now != self._last
             self._last = now
+        if changed:
             self.debouncer.touch()
         if self.debouncer.due():
             self.on_due()

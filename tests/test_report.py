@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 
@@ -59,3 +60,15 @@ def test_json_has_group(checked):
     spelling = [item for item in as_json(run, groups) if item["stage"] == "spelling"]
     assert {item["group"] for item in spelling} == {"typos", "names"}
     assert len(spelling) == 3  # every use, as before
+
+
+@needs_aspell
+def test_long_paths_put_context_at_a_fixed_indent(checked, capsys, monkeypatch):
+    """With a ~70-column absolute path the context must not be pushed off the line."""
+    run, groups = checked
+    monkeypatch.setattr(shutil, "get_terminal_size", lambda fallback: os.terminal_size((100, 40)))
+    print_report(run, groups, Style(colour=False), cwd=Path("/nowhere/at/all"))
+    lines = capsys.readouterr().out.splitlines()
+    context = [line for line in lines if "in lyrca and" in line]
+    assert context and all(line.startswith("    ") and not line.startswith("     ") for line in context)
+    assert all(len(line) <= 100 for line in context)

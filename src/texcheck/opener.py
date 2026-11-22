@@ -140,9 +140,13 @@ def parse_location(args: list[str]) -> tuple[Path, int, int]:
     return Path(parts[0]), *(numbers + [1, 1])[:2]
 
 
-def open_at(path: Path, line: int, col: int, app: str = APP, run=subprocess.run) -> str | None:
+def open_at(path: Path, line: int, col: int, app: str = APP, run=subprocess.run,
+            text: str | None = None) -> str | None:
     """Open `path` in `app` with the text at line:col selected.
 
+    `text` is the file as it was when line:col was worked out. The browser
+    passes the text it checked, so a paragraph added above since then does
+    not move the target: the phrase searched for is still the right one.
     Returns None on success, or a one-line reason it could not be done.
     `run` is subprocess.run, replaceable in tests.
     """
@@ -152,7 +156,9 @@ def open_at(path: Path, line: int, col: int, app: str = APP, run=subprocess.run)
         result = run(["open", str(path)], capture_output=True, text=True)
         return None if result.returncode == 0 else f"could not open {path.name}"
 
-    phrase = unique_phrase(path.read_text(encoding="utf-8", errors="replace"), line, col)
+    if text is None:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    phrase = unique_phrase(text, line, col)
     opened = run(["open", "-a", app, str(path)], capture_output=True, text=True)
     if opened.returncode != 0:
         return f"could not open {path.name} in {app}: {opened.stderr.strip()}"

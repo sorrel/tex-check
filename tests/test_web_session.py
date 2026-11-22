@@ -85,7 +85,7 @@ def session(tmp_path, monkeypatch):
     tex.write_text("\\begin{document}\nIn lyrca, at Ericsson, in lyrca.\n\\end{document}\n")
     opened = []
     made = Session(tex, STAGES, Options(), gazetteer=None, clock=Clock(),
-                   opener=lambda path, line, col: opened.append((path, line, col)))
+                   opener=lambda path, line, col, text=None: opened.append((path, line, col, text)))
     made.opened = opened
     return made
 
@@ -113,7 +113,7 @@ def test_findings_payload_shape(session):
 def test_open_passes_line_and_column(session):
     use = item_for(session, "lyrca")["uses"][1]
     assert session.open(use["id"]) is None
-    assert session.opened == [(session.path, 2, use["col"])]
+    assert session.opened[0][:3] == (session.path, 2, use["col"])
 
 
 @needs_aspell
@@ -180,3 +180,44 @@ def test_stale_id_raises(session):
 def test_bad_scope_is_refused(session):
     with pytest.raises(ValueError):
         session.add_word(item_for(session, "lyrca")["id"], "everywhere-else")
+
+
+# ── races and staleness (from the branch review) ────────────────────────────
+
+class _AddsWordMidCheck:
+    """A stage that adds a word to a list while the check is running."""
+
+    NAME, TITLE, BLURB = "midcheck", "Mid-check", "test only"
+
+    def __init__(self, session, item_id):
+        self.session, self.item_id = session, item_id
+
+    def run(self, prose, settings):
+        self.session.add_word(self.item_id, "book")
+        return []
+
+
+@needs_aspell
+def test_word_added_during_a_running_check_stays_gone(session):
+    item = item_for(session, "lyrca")
+    session.stages = [*STAGES, _AddsWordMidCheck(session, item["id"])]
+    session.recheck()
+    assert item_for(session, "lyrca") is None
+
+
+@needs_aspell
+def test_adding_a_word_does_not_swallow_a_save(session):
+    bump_mtime(session.path)  # saved in Texifier, not yet polled
+    session.add_word(item_for(session, "lyrca")["id"], "book")
+    session.watcher.poll()
+    assert session.status()["state"] == "waiting"
+
+
+@needs_aspell
+def test_open_finds_the_text_that_was_checked(session):
+    use = item_for(session, "lyrca")["uses"][0]
+    checked = session.path.read_text()
+    session.path.write_text("\\begin{document}\nA new first line.\n" + checked)
+    session.open(use["id"])
+    path, line, col, text = session.opened[-1]
+    assert text == checked

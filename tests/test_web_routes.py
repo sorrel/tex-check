@@ -27,7 +27,7 @@ def router(tmp_path, monkeypatch):
     tex.write_text("\\begin{document}\nIn lyrca, in lyrca.\n\\end{document}\n")
     opened = []
 
-    def opener(path, line, col):
+    def opener(path, line, col, text=None):
         opened.append((line, col))
         return "Texifier is not installed" if line == 99 else None
 

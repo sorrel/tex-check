@@ -36,7 +36,7 @@ class StaleId(LookupError):
 
 class Session:
     def __init__(self, path: Path, stages: list, options: Options, gazetteer: set[str] | None,
-                 opener: Callable[[Path, int, int], str | None] = open_at,
+                 opener: Callable[..., str | None] = open_at,
                  clock: Callable[[], float] = time.monotonic):
         self.path = path
         self.stages = stages
@@ -47,6 +47,10 @@ class Session:
         self.version = 0
         self.error: str | None = None
         self.checking = False
+        #: Every word added this session, in order. A check notes how many
+        #: there were when it started, and drops any added while it ran:
+        #: it read the lists before they were written.
+        self._added: list[str] = []
         self._lock = threading.Lock()  # guards the findings below
         self._check_lock = threading.Lock()  # one check at a time
         self._check()  # an unreadable file at start-up is the caller's to report
@@ -58,8 +62,14 @@ class Session:
     # ── checking ────────────────────────────────────────────────────────────
 
     def _check(self) -> None:
+        added_before = len(self._added)
         run = check_file(self.path, self.stages, self.options, self.gazetteer)
         groups = group_findings(run)
+        with self._lock:
+            late = set(self._added[added_before:])
+        if late:
+            for group in groups:
+                group.items = [i for i in group.items if not (i.word and _same(i.word) in late)]
         items = {secrets.token_urlsafe(9): item for group in groups for item in group.items}
         uses = {secrets.token_urlsafe(9): use for item in items.values() for use in item.uses}
         with self._lock:
@@ -133,12 +143,16 @@ class Session:
     # ── acting ──────────────────────────────────────────────────────────────
 
     def open(self, use_id: str) -> str | None:
-        """Open Texifier at a use. Returns None, or why it could not."""
+        """Open Texifier at a use. Returns None, or why it could not.
+
+        The phrase to find is taken from the text that was checked, so an
+        edit since then cannot send Texifier to the wrong place.
+        """
         with self._lock:
             use = self._uses.get(use_id)
         if use is None:
             raise StaleId(use_id)
-        return self.opener(self.path, use.line, use.col)
+        return self.opener(self.path, use.line, use.col, text=self._run.source.text)
 
     def add_word(self, item_id: str, scope: str) -> list[str]:
         """Add an item's word to the book's or the personal list.
@@ -156,15 +170,21 @@ class Session:
                 raise ValueError("only misspelt words can go in a word list")
             target = wordlists.book_file(self.path) if scope == "book" else wordlists.personal_file()
             wordlists.append_word(target, item.word)
-            same = wordlists.normalise(item.word).lower()
+            same = _same(item.word)
+            self._added.append(same)
             removed = []
             for group in self._groups:
                 keep = []
                 for other in group.items:
-                    if other.word and wordlists.normalise(other.word).lower() == same:
+                    if other.word and _same(other.word) == same:
                         removed.append(self._item_ids[id(other)])
                     else:
                         keep.append(other)
                 group.items = keep
-        self.watcher.rebaseline()
+            self.watcher.rebaseline(target)
         return removed
+
+
+def _same(word: str) -> str:
+    """A word as the word lists compare it."""
+    return wordlists.normalise(word).lower()

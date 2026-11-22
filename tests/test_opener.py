@@ -70,3 +70,12 @@ def test_open_at_reports_accessibility(tmp_path):
 
 def test_open_at_missing_file(tmp_path):
     assert "no such file" in open_at(tmp_path / "gone.tex", 1, 1, run=FakeRun())
+
+
+def test_open_at_takes_the_phrase_from_given_text(tmp_path):
+    """The browser passes the text it checked, so a later edit cannot move the target."""
+    tex = tmp_path / "doc.tex"
+    tex.write_text("A new line above.\n" + TEXT)
+    run = FakeRun()
+    open_at(tex, 2, 12, run=run, text=TEXT)
+    assert run.calls[1][-1].startswith("was was")

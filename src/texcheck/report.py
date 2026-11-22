@@ -109,7 +109,9 @@ class _Layout:
         )
         words = [item.word for g in groups for item in g.items if item.word]
         self.word = min(22, max(map(len, words), default=0))
-        self.indent = " " * (self.where + 4)
+        # Context sits under the word, unless a long location (an absolute
+        # path) would leave it too little room: then a fixed indent.
+        self.indent = " " * (self.where + 4 if self.where + 4 <= width * 0.4 else 4)
 
 
 def print_report(run: Run, groups: list[Group], style: Style, cwd: Path) -> None:

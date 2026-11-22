@@ -64,9 +64,14 @@ def test_mid_sentence_capital_is_a_name(groups_of):
 
 
 def test_sentence_initial_capital_is_not_a_name(groups_of):
-    groups = groups_of("Lineker scored in the second half.")
+    """The spec: likely typos are lower-case-initial *or sentence-initial*."""
+    groups = groups_of("It rained. Recieve the post.")
     assert words_in(groups, "names") == []
-    assert words_in(groups, "other") == ["Lineker"]
+    assert words_in(groups, "typos") == ["Recieve"]
+
+
+def test_quoted_contraction_stays_a_quotation(groups_of):
+    assert "vould" in words_in(groups_of("He said \\bsq{there’d vould be none} then."), "quotes")
 
 
 def test_lowercase_with_suggestions_is_a_typo(groups_of):
@@ -80,11 +85,13 @@ def test_word_uses_are_one_item(groups_of):
 
 def test_display_order(groups_of):
     groups = groups_of(
-        "It was was fine.  Then lyrca. Lineker ran. it was ok. "
+        "It was was fine.  Then lyrca. it was ok. "
         r"\say{That vos a pity}. \textbf{au secours} at Ericsson and the heathland."
     )
     assert list(groups) == [
-        "repeats", "punctuation", "typos", "other", "quotes", "bold", "names",
+        # "other" is left with only words aspell cannot suggest anything for,
+        # which it nearly always can; empty groups are not shown.
+        "repeats", "punctuation", "typos", "quotes", "bold", "names",
         "variants", "grammar",
     ]
 

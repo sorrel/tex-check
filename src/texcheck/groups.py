@@ -22,8 +22,8 @@ from .run import Located, Run
 
 #: Spelling's groups, in the order they are shown.
 SPELLING_GROUPS = [
-    ("typos", "Likely typos", "lower-case words aspell can correct"),
-    ("other", "Other unknown words", "everything not sorted below"),
+    ("typos", "Likely typos", "words aspell can correct, not names"),
+    ("other", "Other unknown words", "aspell has no suggestion"),
     ("quotes", "In quotations", "dialogue, dialect and quoted words"),
     ("bold", "Foreign and bold phrases", "set in bold, often not English"),
     ("names", "Names", "capitalised mid-sentence"),
@@ -33,8 +33,9 @@ SPELLING_GROUPS = [
 _TITLES = {key: (title, blurb) for key, title, blurb in SPELLING_GROUPS}
 
 #: Quoted stretches as the extractor writes them (\say → “…”, \bsq → ‘…’),
-#: never running across a paragraph break.
-_QUOTED = re.compile(r"“[^”\n]*”|‘[^‘’\n]*’")
+#: never running across a paragraph break. Inside single quotes a ’ followed
+#: by a letter is an apostrophe (‘there’d be none’), not the closing mark.
+_QUOTED = re.compile(r"“[^”\n]*”|‘(?:[^‘’\n]|’(?=\w))*’")
 
 _SENTENCE_END = ".!?\n"
 
@@ -107,11 +108,10 @@ def classify(word: str, uses: list[Located], spans: list[tuple[int, int]],
         return "bold", ""
     if any(fold(s) == fold(word) for s in suggestions):
         return "variants", ""
-    if word[0].isupper():
-        if any(not _starts_sentence(prose, start) for start, _ in spans):
-            return "names", ""
-        return "other", ""
-    if word[0].islower() and suggestions:
+    if word[0].isupper() and any(not _starts_sentence(prose, start) for start, _ in spans):
+        return "names", ""
+    # Lower-case, or capitalised only because it starts a sentence.
+    if suggestions:
         return "typos", ""
     return "other", ""
 
