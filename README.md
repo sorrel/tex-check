@@ -9,11 +9,12 @@ Repeated words  the same word twice in a row ───────────�
                         …she put the the kettle on and \textbf{waited}…
 ```
 
-It runs in four stages, which you can run together or one at a time:
+It runs in five stages, which you can run together or one at a time:
 
 | Stage | Finds |
 |---|---|
 | `repeats` | the same word twice in a row, even across markup (`the \textbf{the}`) |
+| `near-repeats` | a word of five or more letters again within a few words: within 25 if it is rare in the text (six uses or fewer), within 4 if not. Names and lyric lines are left alone |
 | `punctuation` | double spaces, space before a comma, `,,` `..` `.,`, words run together (`to\textbf{The}`), unbalanced brackets |
 | `spelling` | unknown words, via aspell (British English by default), with suggestions |
 | `grammar` | common slips: *a apple*, *could of*, *more then*, *its a*, *your welcome*, *her's*, lower-case *i* |

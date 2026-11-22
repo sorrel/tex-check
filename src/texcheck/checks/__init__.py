@@ -9,11 +9,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import grammar, punctuation, repeats, spelling
+from . import grammar, near_repeats, punctuation, repeats, spelling
 
-STAGES = [repeats, punctuation, spelling, grammar]
+STAGES = [repeats, near_repeats, punctuation, spelling, grammar]
 BY_NAME = {stage.NAME: stage for stage in STAGES}
-ALIASES = {"repeat": "repeats", "punct": "punctuation", "spell": "spelling", "grammar": "grammar"}
+ALIASES = {"repeat": "repeats", "near": "near-repeats", "punct": "punctuation", "spell": "spelling", "grammar": "grammar"}
 
 
 @dataclass

@@ -1,6 +1,7 @@
 # tex-check
 
 Proofreads the prose in LaTeX files, in stages: **repeats** ("the the"),
+**near-repeats** (the same longer word again within a few words),
 **punctuation** (double spaces, stray/doubled marks, words run together,
 brackets), **spelling** (aspell, `en_GB-ise`), **grammar** (rule-based
 heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`).
@@ -96,6 +97,12 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
 - Not yet confirmed: whether `--web`'s Open in Texifier inherits iTerm's
   Accessibility permission (it should: the server is started from iTerm).
 
+- Near-repeats (`checks/near_repeats.py`) were tuned on a 106,000-word
+  book: 40 words for every word gave 1,398 findings, nearly all subject
+  words (people, school). Now: within 25 words if the word is used 6 times
+  or fewer in the text, within 4 otherwise; about 230. Paragraphs under 12
+  words (lyric lines, headings) break the window.
+
 ## Publishing
 
 The repository is public. Nothing personal goes in it: no home paths,
@@ -109,8 +116,6 @@ its absence would publish it.
 - A LanguageTool stage for real grammar checking. Local LanguageTool needs
   Java 17+ (this Mac has 11); the public API would send the text off the
   machine, so ask before choosing that.
-- Near-repeats (the same longer word twice within a few lines) could
-  become a stage.
 - Layout checks (asked for 22 November 2026): lines that start or end with
   a lone "I" (too many in a paragraph or on a page); the same word at the
   start or end of adjacent lines, or any word directly above the same word
