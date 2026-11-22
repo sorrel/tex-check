@@ -115,6 +115,20 @@ def test_spelling(tmp_path):
     assert "receive" in next(f for f in found if f.group == "recieve").suggestions
 
 
+needs_aspell = pytest.mark.skipif(not shutil.which("aspell"), reason="aspell not installed")
+
+
+@needs_aspell
+def test_urls_are_not_spell_checked():
+    tex = r"Printed by them (https://youloveprint.co.uk) and see elmandash.co.uk today."
+    assert messages(spelling, tex) == []
+
+
+@needs_aspell
+def test_words_beside_urls_still_are():
+    assert messages(spelling, r"A lyrca at https://example.com/x.") == ["lyrca"]
+
+
 def test_resolve_aliases_and_order():
     assert [s.NAME for s in resolve(["spell", "repeat"])] == ["repeats", "spelling"]
     with pytest.raises(ValueError):

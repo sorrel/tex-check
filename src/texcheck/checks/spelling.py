@@ -32,6 +32,14 @@ BLURB = "aspell, British English"
 
 WORD = re.compile(r"(?<!\d)[^\W\d_]+(?:['’][^\W\d_]+)*")  # not "th" in 13th
 
+#: Web addresses are not prose: without this, `https`, `uk` and the run-together
+#: domain names in a colophon each count as a misspelling. Bare domains are
+#: matched only on the endings these books use, so "e.g." and "etc." are safe.
+URL = re.compile(
+    r"(?:https?://|www\.)\S+"
+    r"|\b[\w-]+(?:\.[\w-]+)*\.(?:com|org|net|uk|io|fi|de|fr|ie|eu)\b(?:/\S*)?"
+)
+
 # Good British English that aspell's en_GB dictionaries lack (checked against
 # aspell 0.60.8, November 2026).
 ALWAYS_ACCEPT = {
@@ -61,9 +69,12 @@ def normalise(word: str) -> str:
 def candidates(prose, settings):
     """Yield (match, normalised word) for each word occurrence worth checking."""
     text = prose.text
+    urls = [m.span() for m in URL.finditer(text)]
     for m in WORD.finditer(text):
         word = m.group()
         if len(word) < 2:
+            continue
+        if any(start <= m.start() < end for start, end in urls):
             continue
         if word.isupper() and not settings.spell_capitals:
             continue
