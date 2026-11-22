@@ -181,8 +181,27 @@ main { padding: 2rem 2.5rem 6rem; max-width: calc(var(--measure) + 5rem); }
 .message { font-weight: 600; }
 .times { color: var(--ink-soft); font-size: 0.85rem; }
 .where { font-family: var(--mono); font-size: 0.8rem; color: var(--ink-soft); }
-.suggestions { color: var(--ink-soft); font-size: 0.9rem; }
-.suggestions b { color: var(--ink); font-weight: 500; }
+.suggestions {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1.4rem;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+.suggestion { color: var(--ink); font-weight: 500; letter-spacing: 0.02em; }
+/* The letters that differ: never by colour alone. */
+.suggestion .changed {
+  color: var(--act);
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.difference { margin-left: 0.5rem; color: var(--caveat); font-size: 0.85rem; }
 .note { color: var(--caveat); font-size: 0.9rem; }
 
 .context {

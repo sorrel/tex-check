@@ -307,3 +307,11 @@ def test_undo_twice_is_harmless(session):
 def test_undo_unknown_raises(session):
     with pytest.raises(KeyError):
         session.undo("no-such-entry")
+
+
+@needs_aspell
+def test_suggestions_carry_their_difference(session):
+    top = item_for(session, "lyrca")["suggestions"][0]
+    assert top["text"] == "Lycra"
+    assert top["difference"] == "r and c swapped, capital L"
+    assert ["cr", True] in top["parts"]

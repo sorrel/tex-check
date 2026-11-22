@@ -82,3 +82,16 @@ def test_report_says_how_many_ok(checked, tmp_path, capsys):
     marked = group_findings(run, ok={("spelling", use.text, context_of(run.source, use))})
     print_report(run, marked, Style(colour=False), cwd=tmp_path)
     assert "1 marked OK" in capsys.readouterr().out
+
+
+@needs_aspell
+def test_top_suggestion_says_how_it_differs(checked, tmp_path, capsys):
+    run, groups = checked
+    print_report(run, groups, Style(colour=False), cwd=tmp_path)
+    assert "Lycra (r and c swapped, capital L)" in capsys.readouterr().out
+
+
+def test_changed_letters_are_underlined():
+    from texcheck.report import underline_changes
+    shown = underline_changes("Eclesall", "Ecclesall", Style(colour=True))
+    assert shown == "E\033[4;1mc\033[0mclesall"
