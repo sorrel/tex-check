@@ -172,7 +172,7 @@ def web(path: Path, stages, options: Options, gazetteer, args, style: Style) -> 
         print(f"  {style.dim('Serving on')} {url}")
         what = "Open that address in a browser" if args.no_open else "Opening your browser…"
         print(f"  {what}   {style.dim('ctrl-C to stop')}")
-        print()
+        print(flush=True)  # the server holds the terminal from here on
 
     try:
         serve(router, port=args.port, open_browser=not args.no_open, on_ready=ready)
