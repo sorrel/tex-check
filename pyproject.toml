@@ -20,6 +20,11 @@ testpaths = ["tests"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/texcheck"]
 
+# The browser view's page, stylesheet and script are served from the
+# installed package, so they ship as package data.
+[tool.hatch.build.targets.wheel.force-include]
+"src/texcheck/web/static" = "texcheck/web/static"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

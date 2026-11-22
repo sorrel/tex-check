@@ -23,6 +23,7 @@ examples:
   tex-check document.tex --skip grammar
   tex-check document.tex --list-unknown >> tex-check-words.txt
   tex-check document.tex --json | jq '.[] | select(.stage=="spelling")'
+  tex-check document.tex --web              findings in the browser
   tex-check --update-places --countries GB,IE,FI
 
 word lists: words aspell should accept, one per line, are read from
@@ -68,6 +69,11 @@ def parse_args(argv):
                    "(default: GB,IE; world towns are always included)")
     p.add_argument("--list-unknown", action="store_true",
                    help="print each unknown word once, plain, for building a word list")
+    p.add_argument("--web", action="store_true",
+                   help="open the findings in a browser, re-checking after each save")
+    p.add_argument("--port", type=int, default=8766, help="with --web: port (default: 8766)")
+    p.add_argument("--no-open", action="store_true",
+                   help="with --web: print the address instead of opening a browser")
     p.add_argument("--json", action="store_true", help="machine-readable output")
     p.add_argument("--no-colour", "--no-color", action="store_true", help="plain output")
     p.add_argument("--version", action="version", version=f"tex-check {__version__}")
@@ -99,6 +105,10 @@ def main(argv=None) -> int:
         print(f"tex-check: {err}", file=sys.stderr)
         return 2
 
+    if args.web and len(args.files) != 1:
+        print("tex-check: --web takes one file", file=sys.stderr)
+        return 2
+
     gazetteer = None if args.no_places else places.load()
     style = Style(colour=not args.no_colour and not args.json and sys.stdout.isatty())
     options = Options(
@@ -108,6 +118,9 @@ def main(argv=None) -> int:
         spell_capitals=args.spell_capitals,
         personal_words=not args.no_personal_words,
     )
+    if args.web:
+        return web(args.files[0], stages, options, gazetteer, args, style)
+
     any_findings = False
     json_items: list[dict] = []
     unknown_words: set[str] = set()
@@ -137,6 +150,36 @@ def main(argv=None) -> int:
     elif args.json:
         dump_json(json_items)
     return 1 if any_findings else 0
+
+
+def web(path: Path, stages, options: Options, gazetteer, args, style: Style) -> int:
+    """Serve the browser view of one file until Ctrl-C."""
+    import secrets
+
+    from .web.routes import Router
+    from .web.server import serve
+    from .web.session import Session
+
+    if not path.is_file():
+        print(f"tex-check: no such file: {path}", file=sys.stderr)
+        return 2
+    session = Session(path, stages, options, gazetteer)
+    router = Router(session, secrets.token_urlsafe(24), args.port)
+
+    def ready(url: str, port: int, stop) -> None:
+        print()
+        print(f"{style.bold('tex-check')}  {style.cyan(path.name)}  {style.dim('in the browser')}")
+        print(f"  {style.dim('Serving on')} {url}")
+        what = "Open that address in a browser" if args.no_open else "Opening your browser…"
+        print(f"  {what}   {style.dim('ctrl-C to stop')}")
+        print()
+
+    try:
+        serve(router, port=args.port, open_browser=not args.no_open, on_ready=ready)
+    except OSError as err:
+        print(f"tex-check: cannot serve on port {args.port}: {err.strerror or err}", file=sys.stderr)
+        return 2
+    return 0
 
 
 def update_places(countries: str) -> int:
