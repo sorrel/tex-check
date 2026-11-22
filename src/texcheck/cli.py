@@ -8,6 +8,7 @@ from pathlib import Path
 
 from . import __version__, places, wordlists
 from .checks import STAGES, resolve
+from .groups import group_findings
 from .report import Style, as_json, dump_json, print_report
 from .run import Options, check_file
 
@@ -124,10 +125,11 @@ def main(argv=None) -> int:
 
         if args.list_unknown:
             continue
+        groups = group_findings(run)
         if args.json:
-            json_items += as_json(path, run.source, run.prose, run.results)
+            json_items += as_json(run, groups)
         else:
-            print_report(path, run.source, run.prose, run.results, style, run.stats)
+            print_report(run, groups, style, Path.cwd())
 
     if args.list_unknown:
         for word in sorted(unknown_words, key=str.lower):

@@ -1,7 +1,12 @@
 """Lay findings out for reading in a terminal, or as JSON for other tools.
 
 Every finding starts with `file:line:column`, the form iTerm (Cmd-click,
-via Semantic History) and most editors' terminals recognise as a link.
+via Semantic History) and most editors' terminals recognise as a link. The
+file is shown relative to the current directory when it lies inside it,
+which keeps the column short; iTerm resolves it against the shell's
+directory, so the link still works.
+
+Spelling is shown in groups (see groups.py), likely typos first.
 
 Widths are measured on plain text and colour is applied afterwards; when
 output is piped, or for --json, no colour is used at all.
@@ -11,10 +16,12 @@ from __future__ import annotations
 
 import json
 import shutil
-from collections import defaultdict
+import os
+from pathlib import Path
 
+from .groups import SPELLING_GROUPS, Group, Item
 from .prose import Source
-from .run import Located
+from .run import Located, Run
 
 CONTEXT = 38  # characters of context either side of a finding
 
@@ -34,21 +41,39 @@ class Style:
     def green(self, t): return self._wrap("92", t)
 
 
-def snippet(source: Source, loc: Located, style: Style, width: int) -> str:
-    """The source line around a finding, with the finding highlighted."""
+def display_path(path: Path, cwd: Path) -> str:
+    """`path` relative to `cwd` when it lies inside it, else absolute."""
+    absolute = Path(os.path.abspath(path))
+    try:
+        return str(absolute.relative_to(Path(os.path.abspath(cwd))))
+    except ValueError:
+        return str(absolute)
+
+
+def snippet_parts(source: Source, loc: Located, width: int) -> tuple[bool, str, str, str, bool]:
+    """The source line around a finding, as plain text.
+
+    Returns (cut on the left, before, hit, after, cut on the right). The
+    browser view uses the parts as they are; `snippet` styles them.
+    """
     line = source.line_text(loc.line)
     left = loc.col - 1
     right = min(len(line), left + max(1, loc.end - loc.start))
     room = max(20, (width - (right - left)) // 2)
     lo, hi = max(0, left - min(CONTEXT, room)), min(len(line), right + min(CONTEXT, room))
-
     before, hit, after = line[lo:left], line[left:right], line[right:hi]
     if not hit.strip():  # make whitespace visible
         hit = hit.replace(" ", "␣").replace("\t", "⇥")
-    head = style.dim("…") if lo > 0 else ""
-    tail = style.dim("…") if hi < len(line) else ""
-    clean = lambda s: s.replace("\t", " ")
-    return f"{head}{clean(before)}{style.red(clean(hit))}{clean(after)}{tail}"
+    clean = lambda text: text.replace("\t", " ")
+    return lo > 0, clean(before), clean(hit), clean(after), hi < len(line)
+
+
+def snippet(source: Source, loc: Located, style: Style, width: int) -> str:
+    """The source line around a finding, with the finding highlighted."""
+    cut_left, before, hit, after, cut_right = snippet_parts(source, loc, width)
+    head = style.dim("…") if cut_left else ""
+    tail = style.dim("…") if cut_right else ""
+    return f"{head}{before}{style.red(hit)}{after}{tail}"
 
 
 def heading(title: str, blurb: str, count: str, style: Style, width: int, colour=None) -> str:
@@ -59,56 +84,117 @@ def heading(title: str, blurb: str, count: str, style: Style, width: int, colour
     return f"{style.bold(title)}  {style.dim(blurb)} {style.dim(rule)} {colour(count)}"
 
 
+def spelling_count(findings) -> str:
+    """Spelling counts words, not uses: "213 words (304 uses)"."""
+    words = len({f.group for f in findings})
+    label = f"{words} word{'s' if words != 1 else ''}"
+    return label + (f" ({len(findings)} uses)" if len(findings) != words else "")
+
+
 def stage_count(stage, findings) -> tuple[str, int]:
-    """What a stage's heading and summary show: spelling counts words, not uses."""
+    """What a stage's heading and summary show."""
     if stage.NAME == "spelling":
-        words = len({f.group for f in findings})
-        uses = len(findings)
-        label = f"{words} word{'s' if words != 1 else ''}"
-        return (label + (f" ({uses} uses)" if uses != words else "")), words
+        return spelling_count(findings), len({f.group for f in findings})
     return str(len(findings)), len(findings)
 
 
-def print_report(path, source, prose, results, style: Style, stats: dict | None = None) -> None:
-    """results: list of (stage module, findings or error string)."""
-    stats = stats or {}
+class _Layout:
+    """Widths shared by every row of one report, measured on plain text."""
+
+    def __init__(self, path: str, groups: list[Group], width: int):
+        self.path = path
+        self.width = width
+        self.where = max(
+            (len(item.uses[0].where(path)) for g in groups for item in g.items), default=0
+        )
+        words = [item.word for g in groups for item in g.items if item.word]
+        self.word = min(22, max(map(len, words), default=0))
+        self.indent = " " * (self.where + 4)
+
+
+def print_report(run: Run, groups: list[Group], style: Style, cwd: Path) -> None:
     width = min(shutil.get_terminal_size((100, 20)).columns, 120)
-    located_by_stage = {
-        stage.NAME: sorted((Located(f, prose, source) for f in outcome), key=lambda l: (l.start, l.end))
-        for stage, outcome in results if isinstance(outcome, list)
-    }
-    where_width = max(
-        (len(loc.where(path)) for locs in located_by_stage.values() for loc in locs), default=0
-    )
+    shown = display_path(run.path, cwd)
+    layout = _Layout(shown, groups, width)
+    spelling_keys = {key for key, _, _ in SPELLING_GROUPS} | {"spelling"}
 
     print()
-    print(f"{style.bold('tex-check')}  {style.cyan(str(path))}")
+    print(f"{style.bold('tex-check')}  {style.cyan(shown)}")
     print()
 
-    for stage, outcome in results:
-        if isinstance(outcome, str):
-            print(heading(stage.TITLE, stage.BLURB, "skipped", style, width))
-            print(f"  {style.yellow('skipped:')} {outcome}")
+    spelling_started = False
+    for group in groups:
+        if group.key in spelling_keys:
+            if not spelling_started:
+                spelling_started = True
+                _print_spelling_heading(run, style, width)
+            if group.key != "spelling":
+                _print_subheading(group, style)
+                for item in group.items:
+                    _print_word(item, run.source, style, layout)
+                print()
+            continue
+        if group.skipped is not None:
+            print(heading(group.title, group.blurb, "skipped", style, width))
+            print(f"  {style.yellow('skipped:')} {group.skipped}")
             print()
             continue
-        located = located_by_stage[stage.NAME]
-        label, n = stage_count(stage, outcome)
-        print(heading(stage.TITLE, stage.BLURB, label, style, width, style.green if n == 0 else None))
-        if stage.NAME == "spelling":
-            print_spelling_note(stats.get("spelling", {}), style)
-        if not located:
+        n = len(group.items)
+        print(heading(group.title, group.blurb, str(n), style, width, style.green if n == 0 else None))
+        if not group.items:
             print(f"  {style.dim('nothing found')}")
-        elif stage.NAME == "spelling":
-            print_spelling(located, path, source, style, width, where_width)
-        else:
-            indent = " " * (where_width + 4)
-            for loc in located:
-                note = f"  {style.yellow('(' + loc.finding.note + ')')}" if loc.finding.note else ""
-                print(f"  {style.dim(loc.where(path).ljust(where_width))}  {loc.finding.message}{note}")
-                print(f"{indent}{snippet(source, loc, style, width - len(indent))}")
+        for item in group.items:
+            _print_finding(item, run.source, style, layout)
         print()
 
-    print_summary(results, style)
+    print_summary(run, groups, style)
+
+
+def _print_spelling_heading(run: Run, style: Style, width: int) -> None:
+    stage, outcome = next((s, o) for s, o in run.results if s.NAME == "spelling")
+    if isinstance(outcome, str):
+        print(heading(stage.TITLE, stage.BLURB, "skipped", style, width))
+        print(f"  {style.yellow('skipped:')} {outcome}")
+        print()
+        return
+    label = spelling_count(outcome)
+    print(heading(stage.TITLE, stage.BLURB, label, style, width,
+                  style.green if not outcome else None))
+    print_spelling_note(run.stats.get("spelling", {}), style)
+    if not outcome:
+        print(f"  {style.dim('nothing found')}")
+    print()
+
+
+def _print_subheading(group: Group, style: Style) -> None:
+    n = len(group.items)
+    count = f"{n} word{'s' if n != 1 else ''}"
+    print(f"  {style.bold(group.title)}  {style.dim(group.blurb + ' ·')} {style.yellow(count)}")
+
+
+def _print_finding(item: Item, source: Source, style: Style, layout: _Layout) -> None:
+    loc = item.uses[0]
+    note = f"  {style.yellow('(' + item.note + ')')}" if item.note else ""
+    print(f"  {style.dim(loc.where(layout.path).ljust(layout.where))}  {item.message}{note}")
+    print(f"{layout.indent}{snippet(source, loc, style, layout.width - len(layout.indent))}")
+
+
+def _print_word(item: Item, source: Source, style: Style, layout: _Layout) -> None:
+    first = item.uses[0]
+    sugg = ", ".join(item.suggestions) or "no suggestions"
+    count = f"×{len(item.uses)}" if len(item.uses) > 1 else ""
+    note = f"  {style.yellow('(' + item.note + ')')}" if item.note else ""
+    print(
+        f"  {style.dim(first.where(layout.path).ljust(layout.where))}  "
+        f"{style.red(item.word.ljust(layout.word))} {style.dim(count.ljust(4))} "
+        f"{style.cyan('→')} {sugg}{note}"
+    )
+    print(f"{layout.indent}{snippet(source, first, style, layout.width - len(layout.indent))}")
+    others = sorted({use.line for use in item.uses[1:]} - {first.line})
+    if others:
+        shown = ", ".join(map(str, others[:8])) + (f" +{len(others) - 8}" if len(others) > 8 else "")
+        label = "also on line" + ("s " if len(others) > 1 else " ")
+        print(f"{layout.indent}{style.dim(label + shown)}")
 
 
 def print_spelling_note(stats: dict, style: Style) -> None:
@@ -123,58 +209,42 @@ def print_spelling_note(stats: dict, style: Style) -> None:
         print(f"  {style.dim(f'{n} capitalised {words} accepted as place names (GeoNames)')}")
 
 
-def print_spelling(located, path, source, style, width, where_width) -> None:
-    groups: dict[str, list[Located]] = defaultdict(list)
-    for loc in located:
-        groups[loc.finding.group].append(loc)
-    word_width = min(22, max(len(w) for w in groups))
-    indent = " " * (where_width + 4)
-    for word, locs in sorted(groups.items(), key=lambda kv: kv[1][0].start):
-        first = locs[0]
-        sugg = ", ".join(first.finding.suggestions) or "no suggestions"
-        count = f"×{len(locs)}" if len(locs) > 1 else ""
-        print(
-            f"  {style.dim(first.where(path).ljust(where_width))}  "
-            f"{style.red(word.ljust(word_width))} {style.dim(count.ljust(4))} "
-            f"{style.cyan('→')} {sugg}"
-        )
-        print(f"{indent}{snippet(source, first, style, width - len(indent))}")
-        others = sorted({l.line for l in locs[1:]} - {first.line})
-        if others:
-            shown = ", ".join(map(str, others[:8])) + (f" +{len(others) - 8}" if len(others) > 8 else "")
-            print(f"{indent}{style.dim('also on line' + ('s ' if len(others) > 1 else ' ') + shown)}")
-
-
-def print_summary(results, style) -> None:
-    rows = []
-    for stage, outcome in results:
+def print_summary(run: Run, groups: list[Group], style: Style) -> None:
+    rows: list[tuple[str, str, object]] = []
+    spelling_groups = {key for key, _, _ in SPELLING_GROUPS}
+    for stage, outcome in run.results:
         if isinstance(outcome, str):
             rows.append((stage.TITLE, "skipped", style.yellow))
-        else:
-            label, n = stage_count(stage, outcome)
-            rows.append((stage.TITLE, label, style.green if n == 0 else style.yellow))
-    title_width = max(len(t) for t, _, _ in rows)
+            continue
+        label, n = stage_count(stage, outcome)
+        rows.append((stage.TITLE, label, style.green if n == 0 else style.yellow))
+        if stage.NAME == "spelling":
+            for group in groups:
+                if group.key in spelling_groups:
+                    rows.append(("  " + group.title, str(len(group.items)), style.yellow))
+    title_width = max(len(title) for title, _, _ in rows)
     print(style.bold("Summary"))
     for title, value, colour in rows:
         print(f"  {title.ljust(title_width)}  {colour(value)}")
     print()
 
 
-def as_json(path, source, prose, results) -> list[dict]:
+def as_json(run: Run, groups: list[Group]) -> list[dict]:
     out = []
-    for stage, outcome in results:
-        if isinstance(outcome, str):
-            out.append({"file": str(path), "stage": stage.NAME, "skipped": outcome})
+    for group in groups:
+        if group.skipped is not None:
+            out.append({"file": str(run.path), "stage": group.key, "skipped": group.skipped})
             continue
-        for f in outcome:
-            loc = Located(f, prose, source)
-            out.append({
-                "file": str(path), "stage": stage.NAME,
-                "line": loc.line, "column": loc.col,
-                "end_line": loc.end_line, "end_column": loc.end_col,
-                "message": f.message, "note": f.note,
-                "suggestions": f.suggestions, "text": loc.text,
-            })
+        for item in group.items:
+            for loc in item.uses:
+                f = loc.finding
+                out.append({
+                    "file": str(run.path), "stage": item.stage, "group": group.key,
+                    "line": loc.line, "column": loc.col,
+                    "end_line": loc.end_line, "end_column": loc.end_col,
+                    "message": f.message, "note": item.note or f.note,
+                    "suggestions": f.suggestions, "text": loc.text,
+                })
     return out
 
 
