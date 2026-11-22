@@ -89,10 +89,11 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
   become a stage.
 - Layout checks (asked for 22 November 2026): lines that start or end with
   a lone "I" (too many in a paragraph or on a page); the same word at the
-  start or end of adjacent lines (stacks); a paragraph whose last line is
-  one word (runts). These depend on TeX's line and page breaks, so they need
-  the typeset PDF (pdftotext, or SyncTeX to map back to line:col), not the
-  source. Thresholds are the user's to set.
+  start or end of adjacent lines, or any word directly above the same word
+  (stacks); a paragraph whose last line is one word (runts). These depend
+  on TeX's line and page breaks, so they need the typeset PDF, which sits
+  beside the .tex (`document.pdf` next to `document.tex`): pdftotext, or
+  SyncTeX to map back to line:col. Thresholds are the user's to set.
 
 ## Running
 
