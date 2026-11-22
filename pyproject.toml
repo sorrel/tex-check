@@ -1,0 +1,25 @@
+[project]
+name = "tex-check"
+version = "0.1.0"
+description = "Proofread the prose in LaTeX files: repeats, punctuation, spelling, grammar"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = []
+
+[project.scripts]
+tex-check = "texcheck.cli:main"
+tex-check-open = "texcheck.opener:main"
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/texcheck"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
