@@ -38,10 +38,24 @@ tex-check book.tex --web                # in the browser (see below)
 ```
 
 Spelling findings are sorted into groups, likely typos first: **Likely
-typos**, **Other unknown words**, **In quotations** (dialogue, dialect),
-**Foreign and bold phrases**, **Names** and **Variants** (*ok*/OK,
-*heathland*/heath land). A missing backslash (`bsq{word}`) is caught as a
-typo. Web addresses are not spell-checked.
+typos**, **In quotations** (dialogue, dialect), **Foreign and bold
+phrases**, **Names** and **Variants** (*ok*/OK, *heathland*/heath land),
+plus **Other unknown words** for anything aspell has no suggestion for.
+Web addresses are not spell-checked.
+
+Each word also says **why** it was flagged, worked out from aspell's
+suggestions, which on their own never explain:
+
+```
+  document.tex:786:167   Ziggys        ×2   missing apostrophe?   → Ziggy's, Ziggy, Piggy's
+  document.tex:404:46    synthesisers       British spelling; aspell knows only the American
+  document.tex:2162:304  accoutrement       aspell knows only the plural
+  document.tex:485:282   practiced          American spelling?    → practised, …
+```
+
+Others: *capitals differ*, *usually two words*, *usually hyphenated*,
+*accent differs*, *missing \ before \bsq?* (a command that lost its
+backslash), and *not in the dictionary*.
 
 Exit status: 0 nothing found, 1 findings, 2 error. `tex-check --help` lists
 every option.
@@ -79,15 +93,38 @@ tex-check book.tex --web            # opens http://127.0.0.1:8766/
 tex-check book.tex --web --no-open --port 9000
 ```
 
-The groups are down the side; each finding shows its context with **Open in
-Texifier**, **Add for this book** and **Add everywhere** buttons (keys:
-`j`/`k` to move, `o`, `b`, `e`). Save in Texifier and the page re-checks 30
-seconds after the last save; each further save restarts the wait, or press
-**Re-check now**. ctrl-C stops it; it also stops after 30 minutes with the
-page closed.
+The groups are down the side. Every **use** of a word is its own row, with
+its context, **Open in Texifier** and **OK** ("fine here": hides that one
+place only). A word's header has its reason, aspell's suggestions, and
+**Add for this book** / **Add everywhere** for all its uses at once.
+
+Every OK and every add is recorded, and the **Done** view lists them
+newest first with an **Undo** button, so a wrong click can always be found
+and put back. OK marks are matched on the text around the finding, not its
+line number, so they survive edits elsewhere and lapse if you rewrite that
+sentence. The terminal report leaves OK'd findings out too.
+
+Keys: `j`/`k` move, `o` open in Texifier, `x` OK, `b` add for this book,
+`e` add everywhere.
+
+Save in Texifier and the page re-checks 30 seconds after the last save;
+each further save restarts the wait, or press **Re-check now**. Stop it
+with ctrl-C; it also stops by itself 30 minutes after the page is closed.
 
 The server listens on 127.0.0.1 only and every request needs the token in
 the address it opens, so no other web page can press its buttons.
+
+## Files it keeps
+
+| File | Where | What |
+|---|---|---|
+| `tex-check-words.txt` | beside the `.tex` | this book's accepted words |
+| `tex-check-done.jsonl` | beside the `.tex` | every OK, add and undo (append-only) |
+| `words.txt` | this repository | your accepted words for every book |
+| `places.txt` | `~/.local/share/tex-check/` | the GeoNames place names |
+
+Nothing is sent anywhere: the only network use is the one-off GeoNames
+download.
 
 ## Jump to a finding in Texifier (macOS, optional)
 

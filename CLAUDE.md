@@ -25,6 +25,14 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
 - `wordlists.py`: the book's `tex-check-words.txt` and the personal
   `words.txt` at this repo's root (found via the editable install; falls
   back to `~/.local/share/tex-check/words.txt`).
+- `donelog.py`: `tex-check-done.jsonl` beside the book, append-only: every
+  OK, add and undo. OK marks are derived from it and match on stage + text
+  + `before[[hit]]after` context (never the line), so they survive edits
+  elsewhere. Undo is an entry; undoing an add removes the word only if that
+  add wrote it (`added`).
+- `groups.reason`: plain-words reason per word, from aspell's suggestions
+  (missing apostrophe, capitals, one/two words, accent, American, British
+  form aspell lacks, plural only, macro slip).
 - `web/`: `tex-check FILE --web`, mail-triage's pattern on a small scale.
   stdlib `http.server` on 127.0.0.1:8766, per-run token (URL once, then
   header; cookie for assets), Host/Origin checks (`security.py`, adapted
@@ -71,14 +79,21 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
   dialect and invented words; personal (`words.txt` here, in git) for good
   words everywhere. Bootstrap a book's with `--list-unknown`, then prune.
 - Grouping heuristics were tuned on a real 3,400-line book (22 November
-  2026:
-  209 words → typos 49, other 7, quotes 21, bold 20, names 55, variants
-  57). Variants must be tested after quotes and bold: aspell splits almost
+  2026: 209 words → typos 49, other 7, quotes 21, bold 20, names 55,
+  variants 57). Variants must be tested after quotes and bold: aspell splits almost
   anything ("secours" → "sec ours"). Likely typos are still mostly good
   words aspell lacks, and hyphenated fragments (*pre*-, *-seater*); the
   personal list absorbs the first.
 - Not yet confirmed: whether `--web`'s Open in Texifier inherits iTerm's
   Accessibility permission (it should: the server is started from iTerm).
+
+## Publishing
+
+The repository is public. Nothing personal goes in it: no home paths,
+book titles, document excerpts or addresses. `tests/test_no_personal_data.py`
+enforces this; its denylist of identifying terms lives in the gitignored
+`local/identifying-terms.txt`, because listing a term in order to assert
+its absence would publish it.
 
 ## Not done yet
 
@@ -94,6 +109,9 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
   on TeX's line and page breaks, so they need the typeset PDF, which sits
   beside the .tex (`document.pdf` next to `document.tex`): pdftotext, or
   SyncTeX to map back to line:col. Thresholds are the user's to set.
+- A tense check (an unintended slip from past to present in narration,
+  ignoring dialogue). Regexes cannot do it: it needs a tagger, LanguageTool
+  or a model, and the latter two may send text off the machine, so ask.
 
 ## Running
 

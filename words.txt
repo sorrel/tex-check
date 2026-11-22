@@ -1,1 +1,4 @@
 # tex-check word list: one word per line, '#' starts a comment
+There'd
+Daleks
+Arndale
