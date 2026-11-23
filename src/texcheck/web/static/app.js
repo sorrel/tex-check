@@ -140,7 +140,17 @@ function drawGroups() {
     spelling.forEach((g) => nav.append(link(g)));
     nav.append(el("hr", { class: "divider" }));
   }
-  others.forEach((g) => nav.append(link(g)));
+  // Stages split into groups (layout) get a label of their own, like spelling.
+  let section = "";
+  for (const g of others) {
+    if (g.section && g.count === 0) continue;
+    if (g.section !== section) {
+      if (section) nav.append(el("hr", { class: "divider" }));
+      if (g.section) nav.append(el("p", { class: "section-label" }, g.section));
+      section = g.section;
+    }
+    nav.append(link(g));
+  }
   $("done-link").setAttribute("aria-current", String(state.group === DONE));
 }
 

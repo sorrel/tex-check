@@ -139,7 +139,7 @@ class Session:
     def _group_payload(self, group: Group) -> dict:
         return {
             "key": group.key, "title": group.title, "blurb": group.blurb,
-            "skipped": group.skipped, "count": len(group.items),
+            "skipped": group.skipped, "count": len(group.items), "section": group.section,
             "items": [self._item_payload(item) for item in group.items],
         }
 
