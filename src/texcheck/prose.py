@@ -58,6 +58,12 @@ HEADINGS = {
     "itattrib", "epigraph",
 }
 
+# Of those, the ones that are titles rather than text set apart (an epigraph).
+TITLES = {
+    "part", "chapter", "section", "subsection", "subsubsection", "paragraph",
+    "subparagraph", "title",
+}
+
 # Commands whose argument is a footnote-like aside, checked separately.
 NOTES = {"footnote", "footnotetext", "marginpar", "endnote"}
 
@@ -114,6 +120,8 @@ class Prose:
     chars: list[str] = field(default_factory=list)
     offsets: list[int] = field(default_factory=list)
     bold: list[bool] = field(default_factory=list)
+    #: Spans of section and chapter titles, for the layout checks.
+    titles: list[tuple[int, int]] = field(default_factory=list)
 
     def put(self, text: str, offset: int, bold: bool = False) -> None:
         for ch in text:
@@ -122,6 +130,8 @@ class Prose:
             self.bold.append(bold)
 
     def extend(self, other: Prose) -> None:
+        shift = len(self.chars)
+        self.titles += [(a + shift, b + shift) for a, b in other.titles]
         self.chars += other.chars
         self.offsets += other.offsets
         self.bold += other.bold
@@ -298,7 +308,10 @@ class LatexToProse:
             j = self.skip_optional(j)
             self.emit(BREAK, i)
             if j < self.n and src[j] == "{":
+                start = len(self.out.chars)
                 j = self.walk(j + 1, closing=True)
+                if name in TITLES:
+                    self.out.titles.append((start, len(self.out.chars)))
                 self.emit(BREAK, j - 1)
             return j
         if name in BREAKS:

@@ -6,3 +6,5 @@ __pycache__/
 local/
 # Stray TeX logs
 *.log
+# Personal word list: your accepted words for every book. Kept here, never published.
+words.txt

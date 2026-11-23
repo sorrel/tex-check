@@ -86,8 +86,13 @@ def _lone_i(line: Line, left: float, right: float) -> int:
     return count
 
 
-def find(pages: list[list[Word]]) -> list[Hit]:
-    """Every layout problem in the typeset pages, in page order."""
+def find(pages: list[list[Word]], titles: set[int] | frozenset = frozenset()) -> list[Hit]:
+    """Every layout problem in the typeset pages, in page order.
+
+    `titles` holds the id() of words that belong to section and chapter
+    titles. A line made mostly of them is a title: it is not checked or
+    compared with its neighbours, and it ends the paragraph before it.
+    """
     hits: list[Hit] = []
     previous: Line | None = None  # carries over a page break, for runts
     previous_full = False
@@ -95,14 +100,19 @@ def find(pages: list[list[Word]]) -> list[Hit]:
         lines = _body(words)
         if not lines:
             continue
-        left, right = _margins(lines)
-        full = [ln[-1].x1 >= right - SHORT_OF_MARGIN and len(ln) > 1 for ln in lines]
+        is_title = [sum(id(w) in titles for w in ln) * 2 > len(ln) for ln in lines]
+        left, right = _margins([ln for ln, t in zip(lines, is_title) if not t] or lines)
+        full = [ln[-1].x1 >= right - SHORT_OF_MARGIN and len(ln) > 1 and not t
+                for ln, t in zip(lines, is_title)]
         page_i: list[int] = []
         para_i: list[int] = []
         for index, ln in enumerate(lines):
             at = index + 1
             prev_full = full[index - 1] if index else previous_full
             prev_line = lines[index - 1] if index else previous
+            if is_title[index]:
+                para_i = []  # a title ends the paragraph before it
+                continue
             # Runts: a paragraph's last line, one word, after a full line.
             if (not full[index] and len(ln) == 1 and prev_line is not None and prev_full
                     and ln[0].text[-1] in _ENDS_PARAGRAPH):
@@ -120,13 +130,13 @@ def find(pages: list[list[Word]]) -> list[Hit]:
                     page_i = [n for n in page_i if n not in para_i]
                 para_i = []
             # Stacks, against the line above on this page.
-            if index:
+            if index and not is_title[index - 1]:
                 hits += _stacks(lines[index - 1], ln, number, at, full[index - 1], full[index], left)
         if len(page_i) >= PAGE_I:
             hits.append(Hit("lone-i", number, page_i[0], _first_i(lines[page_i[0] - 1]),
                             f"{len(page_i)} lone “I”s at line edges on this page "
                             f"({_line_list(page_i)})"))
-        previous, previous_full = lines[-1], full[-1]
+        previous, previous_full = (None, False) if is_title[-1] else (lines[-1], full[-1])
     return hits
 
 
@@ -332,6 +342,22 @@ def _align(pdf: list[str], prose: list[str], size: int = 4, gap_limit: int = 400
     return found
 
 
+def _title_words(pdf: list[tuple[str, Word]], mapping: dict[int, int],
+                 spans: list[tuple[int, int]], titles: list[tuple[int, int]]) -> set[int]:
+    """id() of the typeset words that match title text in the prose."""
+    if not titles:
+        return set()
+    starts = sorted(titles)
+    found = set()
+    for index, (_, word) in enumerate(pdf):
+        if index in mapping:
+            at = spans[mapping[index]][0]
+            k = bisect_left(starts, (at + 1,)) - 1
+            if k >= 0 and starts[k][0] <= at < starts[k][1]:
+                found.add(id(word))
+    return found
+
+
 def run(prose, settings) -> list[Finding]:
     if settings.pdf is None:
         raise Skipped("no PDF beside the .tex (typeset it first)")
@@ -343,10 +369,10 @@ def run(prose, settings) -> list[Finding]:
     spans = [m.span() for m in TOKEN.finditer(text)]
     texts = [text[a:b].replace("’", "'").lower() for a, b in spans]
     pages = unglue(pages, set(texts))
-    hits = find(pages)
 
     pdf = _pdf_tokens(pages)
     mapping = _align([t for t, _ in pdf], texts)
+    hits = find(pages, _title_words(pdf, mapping, spans, prose.titles))
     first_index: dict[int, int] = {}
     for index, (_, word) in enumerate(pdf):
         if index in mapping:

@@ -91,8 +91,9 @@ one per line:
 
 - `tex-check-words.txt` beside the `.tex` file, for that book's names,
   dialect and invented words. It travels with the book.
-- `words.txt` in this repository, for good words everywhere (*heathland*,
-  *Ericsson*). It is in git, so mistakes show in the history.
+- `words.txt` in this repository's folder, for good words everywhere
+  (*heathland*, *Ericsson*). It is gitignored, so the names you add never
+  reach a public repository; the Done view is the record of what went in.
   `--no-personal-words` leaves it out.
 
 To start a book's list:
@@ -146,7 +147,7 @@ the address it opens, so no other web page can press its buttons.
 |---|---|---|
 | `tex-check-words.txt` | beside the `.tex` | this book's accepted words |
 | `tex-check-done.jsonl` | beside the `.tex` | every OK, add and undo (append-only) |
-| `words.txt` | this repository | your accepted words for every book |
+| `words.txt` | this repository's folder (gitignored) | your accepted words for every book |
 | `places.txt` | `~/.local/share/tex-check/` | the GeoNames place names |
 | `british.txt` | `~/.local/share/tex-check/` | the larger British word list |
 | `layout-cache/` | `~/.local/share/tex-check/` | word positions read from each PDF |
