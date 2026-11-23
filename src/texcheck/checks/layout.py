@@ -48,7 +48,7 @@ __all__ = ["Skipped", "find", "run"]
 
 @dataclass
 class Hit:
-    kind: str
+    kind: str         # runt, lone-i, starts, ends, above (see groups.LAYOUT_GROUPS)
     page: int         # 0-based PDF page
     line: int         # 1-based body line on that page
     word: Word        # where to point
@@ -164,10 +164,10 @@ def _stacks(upper: Line, lower: Line, page: int, at: int, upper_full: bool,
     hits = []
     starts = len(upper) > 1 and len(lower) > 1 and upper[0].x0 <= left + 2 and lower[0].x0 <= left + 2
     if starts and _key(upper[0]) and _key(upper[0]) == _key(lower[0]):
-        hits.append(Hit("stack", page, at, lower[0], f"“{_shown(lower[0])}” starts two lines running"))
+        hits.append(Hit("starts", page, at, lower[0], f"“{_shown(lower[0])}” starts two lines running"))
     ends = upper_full and lower_full
     if ends and _key(upper[-1]) and _key(upper[-1]) == _key(lower[-1]):
-        hits.append(Hit("stack", page, at, lower[-1], f"“{_shown(lower[-1])}” ends two lines running"))
+        hits.append(Hit("ends", page, at, lower[-1], f"“{_shown(lower[-1])}” ends two lines running"))
     for i, word in enumerate(lower):
         key = _key(word)
         if not key or (i == 0 and starts) or (i == len(lower) - 1 and ends):
@@ -176,7 +176,7 @@ def _stacks(upper: Line, lower: Line, page: int, at: int, upper_full: bool,
             if (j == 0 and i == 0) or (j == len(upper) - 1 and i == len(lower) - 1):
                 continue
             if _key(above) == key and _shift(above, word) <= ABOVE_SHIFT:
-                hits.append(Hit("stack", page, at, word, f"“{_shown(word)}” directly above “{_shown(above)}”"))
+                hits.append(Hit("above", page, at, word, f"“{_shown(word)}” directly above “{_shown(above)}”"))
                 break
     return hits
 
@@ -390,6 +390,6 @@ def run(prose, settings) -> list[Finding]:
             continue
         start, end = spans[at]
         findings.append(Finding(NAME, start, end, hit.message,
-                                note=f"PDF page {hit.page + 1}, line {hit.line}"))
+                                note=f"PDF page {hit.page + 1}, line {hit.line}", group=hit.kind))
     settings.stats[NAME] = {"unmatched": unmatched, "stale": settings.pdf_stale}
     return findings

@@ -319,3 +319,9 @@ def test_suggestions_carry_their_difference(session):
 
 def test_the_pdf_is_watched(session):
     assert session.path.with_suffix(".pdf") in session._watched()
+
+
+def test_groups_carry_their_section(session):
+    from texcheck.groups import Group
+    payload = session._group_payload(Group("layout-runt", "One-word last lines", "b", section="Layout"))
+    assert payload["section"] == "Layout"

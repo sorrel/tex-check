@@ -112,7 +112,18 @@ def print_report(run: Run, groups: list[Group], style: Style, cwd: Path) -> None
     print()
 
     spelling_started = False
+    sections_started: set[str] = set()
     for group in groups:
+        if group.section:
+            if group.section not in sections_started:
+                sections_started.add(group.section)
+                _print_section_heading(run, groups, group.section, style, width)
+            if group.items:
+                _print_subheading(group, style, unit="finding")
+                for item in group.items:
+                    _print_finding(item, run.source, style, layout)
+                print()
+            continue
         if group.key in spelling_keys:
             if not spelling_started:
                 spelling_started = True
@@ -159,9 +170,24 @@ def _print_spelling_heading(run: Run, groups: list[Group], style: Style, width: 
     print()
 
 
-def _print_subheading(group: Group, style: Style) -> None:
+def _print_section_heading(run: Run, groups: list[Group], section: str, style: Style,
+                           width: int) -> None:
+    """The heading over a stage split into groups (layout), with its total."""
+    stage = next(s for s, _ in run.results if s.TITLE == section)
+    mine = [g for g in groups if g.section == section]
+    n = sum(len(g.items) for g in mine)
+    print(heading(stage.TITLE, stage.BLURB, str(n), style, width, style.green if n == 0 else None))
+    if stage.NAME == "layout":
+        print_layout_note(run.stats.get("layout", {}), style)
+    ok_note(sum(g.hidden for g in mine), style)
+    if not n:
+        print(f"  {style.dim('nothing found')}")
+    print()
+
+
+def _print_subheading(group: Group, style: Style, unit: str = "word") -> None:
     n = len(group.items)
-    count = f"{n} word{'s' if n != 1 else ''}"
+    count = f"{n} {unit}{'s' if n != 1 else ''}"
     print(f"  {style.bold(group.title)}  {style.dim(group.blurb + ' ·')} {style.yellow(count)}")
 
 
@@ -244,6 +270,12 @@ def print_summary(run: Run, groups: list[Group], style: Style) -> None:
             for group in groups:
                 if group.key in _SPELLING_KEYS - {"spelling"} and group.items:
                     rows.append(("  " + group.title, str(len(group.items)), style.yellow))
+            continue
+        if stage.NAME not in by_key:  # split into groups, like spelling
+            mine = [g for g in groups if g.section == stage.TITLE]
+            n = sum(len(g.items) for g in mine)
+            rows.append((stage.TITLE, str(n), style.green if n == 0 else style.yellow))
+            rows += [("  " + g.title, str(len(g.items)), style.yellow) for g in mine if g.items]
             continue
         n = len(by_key[stage.NAME].items)
         rows.append((stage.TITLE, str(n), style.green if n == 0 else style.yellow))

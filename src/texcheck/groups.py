@@ -31,6 +31,15 @@ SPELLING_GROUPS = [
     ("elsewhere", "Known to other dictionaries", "aspell lacks them; a larger dictionary has them"),
 ]
 
+#: Layout's groups, in the order they are shown, keyed by the finding's kind.
+LAYOUT_GROUPS = [
+    ("runt", "One-word last lines", "a paragraph ending in a single word"),
+    ("lone-i", "Lone “I”s at line edges", "too many in a paragraph or on a page"),
+    ("starts", "Same word starting lines", "two lines running"),
+    ("ends", "Same word ending lines", "two lines running"),
+    ("above", "Word above itself", "squarely on top of the same word"),
+]
+
 #: Reasons that outweigh another dictionary's say-so: macOS accepts
 #: "Ziggys" and "practiced", but they are still worth a look.
 STRONG_REASONS = {"missing apostrophe?", "capitals differ", "American spelling?"}
@@ -71,6 +80,7 @@ class Group:
     items: list[Item] = field(default_factory=list)
     skipped: str | None = None
     hidden: int = 0  # uses left out because they are marked OK
+    section: str = ""  # the stage a sub-group belongs to ("Layout"), shown as a heading
 
 
 def fold(word: str) -> str:
@@ -227,9 +237,9 @@ def group_findings(run: Run, ok: set | frozenset = frozenset()) -> list[Group]:
         return groups
     groups = _drop_ok(groups, run, ok)
     spelling = {key for key, _, _ in SPELLING_GROUPS}
-    # A spelling sub-group emptied by OK marks is kept only to carry its
-    # hidden count; views show sub-groups with items.
-    return [g for g in groups if g.key not in spelling or g.items or g.hidden]
+    # A sub-group emptied by OK marks is kept only to carry its hidden
+    # count; views show sub-groups with items.
+    return [g for g in groups if (g.key not in spelling and not g.section) or g.items or g.hidden]
 
 
 def _all_groups(run: Run) -> list[Group]:
@@ -241,11 +251,29 @@ def _all_groups(run: Run) -> list[Group]:
         if stage.NAME == "spelling" and outcome:
             out += _spelling_groups(run, outcome)
             continue
+        if stage.NAME == "layout" and outcome:
+            out += _layout_groups(run, stage, outcome)
+            continue
         group = Group(stage.NAME, stage.TITLE, stage.BLURB)
-        for finding in sorted(outcome, key=lambda f: (f.start, f.end)):
-            group.items.append(Item(
-                f"{stage.NAME}:{finding.start}", stage.NAME, None, finding.message,
-                finding.note, finding.suggestions, [Located(finding, run.prose, run.source)],
-            ))
+        group.items = _items(run, stage.NAME, outcome)
         out.append(group)
+    return out
+
+
+def _items(run: Run, stage: str, findings: list) -> list[Item]:
+    return [
+        Item(f"{stage}:{f.start}:{f.group}", stage, None, f.message, f.note, f.suggestions,
+             [Located(f, run.prose, run.source)])
+        for f in sorted(findings, key=lambda f: (f.start, f.end))
+    ]
+
+
+def _layout_groups(run: Run, stage, findings: list) -> list[Group]:
+    """Layout's findings split by kind, in LAYOUT_GROUPS order."""
+    out = []
+    for kind, title, blurb in LAYOUT_GROUPS:
+        mine = [f for f in findings if f.group == kind]
+        if mine:
+            out.append(Group(f"layout-{kind}", title, blurb, _items(run, stage.NAME, mine),
+                             section=stage.TITLE))
     return out
