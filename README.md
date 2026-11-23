@@ -9,7 +9,7 @@ Repeated words  the same word twice in a row ───────────�
                         …she put the the kettle on and \textbf{waited}…
 ```
 
-It runs in five stages, which you can run together or one at a time:
+It runs in six stages, which you can run together or one at a time:
 
 | Stage | Finds |
 |---|---|
@@ -18,6 +18,10 @@ It runs in five stages, which you can run together or one at a time:
 | `punctuation` | double spaces, space before a comma, `,,` `..` `.,`, words run together (`to\textbf{The}`), unbalanced brackets |
 | `spelling` | unknown words, via aspell (British English by default), with suggestions |
 | `grammar` | common slips: *a apple*, *could of*, *more then*, *its a*, *your welcome*, *her's*, lower-case *i* |
+| `layout` | needs the typeset PDF beside the `.tex` (macOS): a paragraph whose last line is one word; lines that start or end with a lone *I* (2+ in a paragraph, 3+ on a page); the same word starting or ending two lines running, or directly above itself |
+
+The first layout check of a PDF takes a minute or so (it reads every letter's
+position); after that it is cached until the book is typeset again.
 
 ## Install
 
@@ -145,6 +149,7 @@ the address it opens, so no other web page can press its buttons.
 | `words.txt` | this repository | your accepted words for every book |
 | `places.txt` | `~/.local/share/tex-check/` | the GeoNames place names |
 | `british.txt` | `~/.local/share/tex-check/` | the larger British word list |
+| `layout-cache/` | `~/.local/share/tex-check/` | word positions read from each PDF |
 
 Nothing is sent anywhere: the only network use is the two one-off
 downloads (GeoNames and the British word list). macOS's spellchecker runs

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from . import wordlists
 from .checks import Settings
-from .checks.spelling import SpellerMissing
+from .findings import Skipped
 from .findings import Finding
 from .prose import Prose, Source, extract
 
@@ -99,6 +99,7 @@ def read(path: Path) -> str:
 
 
 def settings_for(path: Path, options: Options, gazetteer: set[str] | None) -> Settings:
+    pdf = path.with_suffix(".pdf")  # the typeset book, for the layout checks
     lists = [wordlists.book_file(path)]
     if options.personal_words:
         lists.append(wordlists.personal_file())
@@ -110,6 +111,8 @@ def settings_for(path: Path, options: Options, gazetteer: set[str] | None) -> Se
         places=gazetteer,
         british=options.british,
         macos=options.macos,
+        pdf=pdf if pdf.is_file() else None,
+        pdf_stale=pdf.is_file() and pdf.stat().st_mtime < path.stat().st_mtime,
     )
 
 
@@ -122,6 +125,6 @@ def check_file(path: Path, stages: list, options: Options, gazetteer: set[str] |
     for stage in stages:
         try:
             results.append((stage, stage.run(prose, settings)))
-        except SpellerMissing as err:
+        except Skipped as err:
             results.append((stage, str(err)))
     return Run(path, source, prose, results, settings.stats)

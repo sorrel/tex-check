@@ -25,7 +25,7 @@ import re
 import shutil
 import subprocess
 from .. import dictionaries
-from ..findings import Finding
+from ..findings import Finding, Skipped
 from ..places import is_place
 from ..wordlists import load as load_wordlists
 from ..wordlists import normalise
@@ -52,7 +52,7 @@ ALWAYS_ACCEPT = {
 }
 
 
-class SpellerMissing(RuntimeError):
+class SpellerMissing(Skipped):
     pass
 
 

@@ -22,3 +22,6 @@ class Finding:
     suggestions: list[str] = field(default_factory=list)
     group: str = ""
 
+
+class Skipped(RuntimeError):
+    """A stage could not run here (no aspell, no PDF); the message says why."""
