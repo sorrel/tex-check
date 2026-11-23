@@ -9,11 +9,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import grammar, punctuation, repeats, spelling
+from . import grammar, layout, near_repeats, punctuation, repeats, spelling
 
-STAGES = [repeats, punctuation, spelling, grammar]
+STAGES = [repeats, near_repeats, punctuation, spelling, grammar, layout]
 BY_NAME = {stage.NAME: stage for stage in STAGES}
-ALIASES = {"repeat": "repeats", "punct": "punctuation", "spell": "spelling", "grammar": "grammar"}
+ALIASES = {"repeat": "repeats", "near": "near-repeats", "punct": "punctuation", "spell": "spelling", "grammar": "grammar"}
 
 
 @dataclass
@@ -27,6 +27,8 @@ class Settings:
     places: set[str] | None = None  # gazetteer; None when not downloaded
     british: bool = True  # ask the larger British list (if downloaded)
     macos: bool = True  # ask macOS's British spellchecker
+    pdf: Path | None = None  # the typeset book beside the .tex, for layout
+    pdf_stale: bool = False  # the PDF is older than the .tex
     stats: dict = field(default_factory=dict)  # stages leave figures here for the report
 
 

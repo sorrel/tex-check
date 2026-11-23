@@ -56,7 +56,9 @@ class Session:
         self.watcher = Watcher(self._watched, Debouncer(clock=clock), self.recheck)
 
     def _watched(self) -> list[Path]:
-        return [self.path, wordlists.book_file(self.path), wordlists.personal_file()]
+        # The PDF too: typesetting again changes the layout findings.
+        return [self.path, self.path.with_suffix(".pdf"), wordlists.book_file(self.path),
+                wordlists.personal_file()]
 
     # ── checking ────────────────────────────────────────────────────────────
 

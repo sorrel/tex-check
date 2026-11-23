@@ -127,3 +127,10 @@ def test_no_macos_flag_reaches_the_options(monkeypatch, tmp_path):
     with pytest.raises(SystemExit):
         cli.main([str(tex), "--no-macos", "--no-british"])
     assert (seen[0].macos, seen[0].british) == (False, False)
+
+
+def test_layout_notes(capsys):
+    from texcheck.report import print_layout_note
+    print_layout_note({"stale": True, "unmatched": 3}, Style(colour=False))
+    out = capsys.readouterr().out
+    assert "older than the .tex" in out and "3 not matched" in out

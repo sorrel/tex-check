@@ -130,6 +130,8 @@ def print_report(run: Run, groups: list[Group], style: Style, cwd: Path) -> None
             continue
         n = len(group.items)
         print(heading(group.title, group.blurb, str(n), style, width, style.green if n == 0 else None))
+        if group.key == "layout":
+            print_layout_note(run.stats.get("layout", {}), style)
         ok_note(group.hidden, style)
         if not group.items:
             print(f"  {style.dim('nothing found')}")
@@ -203,6 +205,15 @@ def _print_word(item: Item, source: Source, style: Style, layout: _Layout) -> No
         shown = ", ".join(map(str, others[:8])) + (f" +{len(others) - 8}" if len(others) > 8 else "")
         label = "also on line" + ("s " if len(others) > 1 else " ")
         print(f"{layout.indent}{style.dim(label + shown)}")
+
+
+def print_layout_note(stats: dict, style: Style) -> None:
+    """Caveats about the PDF the layout checks read."""
+    if stats.get("stale"):
+        print(f"  {style.yellow('note:')} {style.dim('the PDF is older than the .tex: typeset it again')}")
+    if stats.get("unmatched"):
+        n = stats["unmatched"]
+        print(f"  {style.dim(f'{n} not matched to the source (contents, footnotes, or text changed since)')}")
 
 
 def print_spelling_note(stats: dict, style: Style) -> None:

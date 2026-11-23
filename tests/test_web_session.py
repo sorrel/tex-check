@@ -315,3 +315,7 @@ def test_suggestions_carry_their_difference(session):
     assert top["text"] == "Lycra"
     assert top["difference"] == "r and c swapped, capital L"
     assert ["cr", True] in top["parts"]
+
+
+def test_the_pdf_is_watched(session):
+    assert session.path.with_suffix(".pdf") in session._watched()

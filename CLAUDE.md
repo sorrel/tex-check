@@ -1,6 +1,7 @@
 # tex-check
 
 Proofreads the prose in LaTeX files, in stages: **repeats** ("the the"),
+**near-repeats** (the same longer word again within a few words),
 **punctuation** (double spaces, stray/doubled marks, words run together,
 brackets), **spelling** (aspell, `en_GB-ise`), **grammar** (rule-based
 heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`).
@@ -96,6 +97,26 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
 - Not yet confirmed: whether `--web`'s Open in Texifier inherits iTerm's
   Accessibility permission (it should: the server is started from iTerm).
 
+- Near-repeats (`checks/near_repeats.py`) were tuned on a 106,000-word
+  book: 40 words for every word gave 1,398 findings, nearly all subject
+  words (people, school). Now: within 25 words if the word is used 6 times
+  or fewer in the text, within 4 otherwise; about 230. Paragraphs under 12
+  words (lyric lines, headings) break the window.
+
+- Layout (`checks/layout.py`, `pdfwords.py`): reads `document.pdf` beside
+  `document.tex` through PDFKit (`osascript -l JavaScript`), macOS only.
+  Lessons (23 November 2026): xpdf's pdftotext/pdftohtml give no word
+  positions; PDFKit's page text and `characterBoundsAtIndex` disagree (line
+  breaks, boxes too wide on some lines), so each letter is read as a
+  one-letter selection and words are built from the gaps: about 80 s for a
+  290-page book, cached by PDF size+mtime in `~/.local/share/tex-check/
+  layout-cache`. Some lines still come back with touching boxes and no
+  spaces; `layout.unglue` splits them with the book's own vocabulary.
+  Findings map back to the prose by anchors (4-token runs unique in both,
+  longest increasing chain) and difflib between them: the contents pages
+  defeat a simple cursor. Margins are the mode of line edges, not min/max
+  (a stray mark at x=0 on every page). No SyncTeX file is written here.
+
 ## Publishing
 
 The repository is public. Nothing personal goes in it: no home paths,
@@ -107,17 +128,11 @@ its absence would publish it.
 ## Not done yet
 
 - A LanguageTool stage for real grammar checking. Local LanguageTool needs
-  Java 17+ (this Mac has 11); the public API would send the text off the
-  machine, so ask before choosing that.
-- Near-repeats (the same longer word twice within a few lines) could
-  become a stage.
-- Layout checks (asked for 22 November 2026): lines that start or end with
-  a lone "I" (too many in a paragraph or on a page); the same word at the
-  start or end of adjacent lines, or any word directly above the same word
-  (stacks); a paragraph whose last line is one word (runts). These depend
-  on TeX's line and page breaks, so they need the typeset PDF, which sits
-  beside the .tex (`document.pdf` next to `document.tex`): pdftotext, or
-  SyncTeX to map back to line:col. Thresholds are the user's to set.
+  Java 17+: `/usr/bin/java` is 11, but Homebrew's keg-only openjdk (27) is
+  installed at `/opt/homebrew/opt/openjdk/bin/java`, so it can run locally.
+  The public API would send the text off the machine: ask before that.
+- Layout thresholds (`checks/layout.py` constants) are the user's to set;
+  "directly above" is the noisiest (251 on the test book, 101 of them "the").
 - A tense check (an unintended slip from past to present in narration,
   ignoring dialogue). Regexes cannot do it: it needs a tagger, LanguageTool
   or a model, and the latter two may send text off the machine, so ask.
