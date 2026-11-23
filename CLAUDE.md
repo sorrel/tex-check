@@ -133,7 +133,8 @@ its absence would publish it.
   installed at `/opt/homebrew/opt/openjdk/bin/java`, so it can run locally.
   The public API would send the text off the machine: ask before that.
 - Layout thresholds (`checks/layout.py` constants) are the user's to set;
-  "directly above" is the noisiest (251 on the test book, 101 of them "the").
+  "directly above" means centres within 10% of the word width (askew is
+  fine, by request); still the largest group.
 - A tense check (an unintended slip from past to present in narration,
   ignoring dialogue). Regexes cannot do it: it needs a tagger, LanguageTool
   or a model, and the latter two may send text off the machine, so ask.

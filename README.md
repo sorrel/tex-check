@@ -18,7 +18,7 @@ It runs in six stages, which you can run together or one at a time:
 | `punctuation` | double spaces, space before a comma, `,,` `..` `.,`, words run together (`to\textbf{The}`), unbalanced brackets |
 | `spelling` | unknown words, via aspell (British English by default), with suggestions |
 | `grammar` | common slips: *a apple*, *could of*, *more then*, *its a*, *your welcome*, *her's*, lower-case *i* |
-| `layout` | needs the typeset PDF beside the `.tex` (macOS): a paragraph whose last line is one word; lines that start or end with a lone *I* (2+ in a paragraph, 3+ on a page); the same word starting or ending two lines running, or directly above itself |
+| `layout` | needs the typeset PDF beside the `.tex` (macOS): a paragraph whose last line is one word; lines that start or end with a lone *I* (2+ in a paragraph, 3+ on a page); the same word starting or ending two lines running, or squarely above itself (askew is fine) |
 
 The first layout check of a PDF takes a minute or so (it reads every letter's
 position); after that it is cached until the book is typeset again.

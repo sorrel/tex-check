@@ -8,7 +8,8 @@ back to the source, so every finding still opens at its line:column.
 * **Lone "I"s at the edges:** a line that starts or ends with the word "I",
   PARAGRAPH_I or more times in one paragraph, or PAGE_I or more on a page.
 * **Stacks:** the same word starting, or ending, two lines running; and any
-  word directly above the same word (overlapping by 80% of its width).
+  word squarely above the same word (centres within ABOVE_SHIFT of its
+  width; askew is fine).
 
 All thresholds are constants here. A PDF older than the .tex is used anyway
 and said to be out of date; findings it cannot match to the source (the
@@ -35,8 +36,10 @@ PARAGRAPH_I = 2
 PAGE_I = 3
 #: How far short of the right margin, in points, a line must end to close a paragraph.
 SHORT_OF_MARGIN = 15.0
-#: Overlap, as a share of the narrower word, for "directly above".
-ABOVE_OVERLAP = 0.8
+#: "Directly above": the two centres at most this share of the word's width
+#: apart. Askew is fine (asked for 23 November 2026): only a word squarely on
+#: top of itself looks wrong. On the test book: 50% gave 447, 10% gives 148.
+ABOVE_SHIFT = 0.10
 
 TOKEN = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*")
 
@@ -71,9 +74,10 @@ def _margins(lines: list[Line]) -> tuple[float, float]:
     return mode([ln[0].x0 for ln in long]) - 0.5, mode([ln[-1].x1 for ln in long]) + 0.5
 
 
-def _overlap(a: Word, b: Word) -> float:
-    width = min(a.x1 - a.x0, b.x1 - b.x0) or 1.0
-    return max(0.0, min(a.x1, b.x1) - max(a.x0, b.x0)) / width
+def _shift(a: Word, b: Word) -> float:
+    """How far apart the two words' centres are, as a share of the wider one."""
+    width = max(a.x1 - a.x0, b.x1 - b.x0) or 1.0
+    return abs((a.x0 + a.x1) - (b.x0 + b.x1)) / 2 / width
 
 
 def _lone_i(line: Line, left: float, right: float) -> int:
@@ -171,7 +175,7 @@ def _stacks(upper: Line, lower: Line, page: int, at: int, upper_full: bool,
         for j, above in enumerate(upper):
             if (j == 0 and i == 0) or (j == len(upper) - 1 and i == len(lower) - 1):
                 continue
-            if _key(above) == key and _overlap(above, word) >= ABOVE_OVERLAP:
+            if _key(above) == key and _shift(above, word) <= ABOVE_SHIFT:
                 hits.append(Hit("stack", page, at, word, f"“{_shown(word)}” directly above “{_shown(above)}”"))
                 break
     return hits

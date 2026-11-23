@@ -231,3 +231,10 @@ def test_title_lines_are_found_through_the_source(tmp_path, monkeypatch):
         line(576, "all by then.", full=False),
     )])
     assert layout.run(extract(src), Settings(pdf=tmp_path / "doc.pdf")) == []
+
+
+def test_a_word_partly_above_at_an_angle_is_fine():
+    """Only a word squarely on top of itself looks wrong; askew is fine."""
+    upper = [Word("over", 40, 60, 600), Word("garden", 150, 180, 600), Word("wall", 320, 340, 600)]
+    lower = [Word("into", 40, 60, 588), Word("garden", 156, 186, 588), Word("shed", 320, 340, 588)]
+    assert hits(upper + lower) == []  # shifted by a fifth of its width
