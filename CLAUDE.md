@@ -86,7 +86,8 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
   "\(semanticHistory.path)" "\(semanticHistory.lineNumber)"
   "\(semanticHistory.columnNumber)"`; non-.tex files fall back to `open`.
 - Word lists: per book (`tex-check-words.txt` beside the .tex) for names,
-  dialect and invented words; personal (`words.txt` here, in git) for good
+  dialect and invented words; personal (`words.txt` here, gitignored since the repository went
+  public: adds are often names) for good
   words everywhere. Bootstrap a book's with `--list-unknown`, then prune.
 - Grouping heuristics were tuned on a real 3,400-line book (22 November
   2026: 209 words → typos 49, other 7, quotes 21, bold 20, names 55,
@@ -132,7 +133,8 @@ its absence would publish it.
   installed at `/opt/homebrew/opt/openjdk/bin/java`, so it can run locally.
   The public API would send the text off the machine: ask before that.
 - Layout thresholds (`checks/layout.py` constants) are the user's to set;
-  "directly above" is the noisiest (251 on the test book, 101 of them "the").
+  "directly above" means centres within 10% of the word width (askew is
+  fine, by request); still the largest group.
 - A tense check (an unintended slip from past to present in narration,
   ignoring dialogue). Regexes cannot do it: it needs a tagger, LanguageTool
   or a model, and the latter two may send text off the machine, so ask.

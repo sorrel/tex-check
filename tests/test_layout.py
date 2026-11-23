@@ -196,3 +196,45 @@ def test_messages_keep_the_word_as_written():
         line(600, "I knew the road was long and the dog"),
         line(588, "I thought, would be fine at home.", full=False),
     )) == ["2 lone “I”s at line edges in this paragraph (lines 1, 2)", "“I” starts two lines running"]
+
+
+def test_titles_are_not_compared():
+    """A section or chapter title is not part of the running text."""
+    heading = line(588, "The Road", full=False)
+    pages = [page(
+        line(600, "the last words of the chapter before this one were", ),
+        line(594, "the end.", full=False),
+        heading,
+        line(576, "The road ran on and the dog ran with it, and we ran"),
+        line(564, "home.", full=False),
+    )]
+    titles = {id(w) for w in pages[0] if w in heading}
+    assert "“The” starts two lines running" not in [h.message for h in layout.find(pages, titles)]
+    assert [h.message for h in layout.find(pages, titles)] == [
+        "“the” starts two lines running",
+        "one word on the last line of a paragraph: “home.”",
+    ]
+
+
+def test_prose_records_where_titles_are():
+    prose = extract("\\begin{document}\n\\section{The Road}\nThe road ran on.\n\\end{document}\n")
+    [(start, end)] = prose.titles
+    assert prose.text[start:end] == "The Road"
+
+
+def test_title_lines_are_found_through_the_source(tmp_path, monkeypatch):
+    src = ("\\begin{document}\n\\section{The Walk}\n"
+           "The walk was long and the dog was tired and so were we all by then.\n\\end{document}\n")
+    monkeypatch.setattr(layout.pdfwords, "read", lambda pdf, **kw: [page(
+        line(600, "The Walk", full=False),
+        line(588, "The walk was long and the dog was tired and so were we"),
+        line(576, "all by then.", full=False),
+    )])
+    assert layout.run(extract(src), Settings(pdf=tmp_path / "doc.pdf")) == []
+
+
+def test_a_word_partly_above_at_an_angle_is_fine():
+    """Only a word squarely on top of itself looks wrong; askew is fine."""
+    upper = [Word("over", 40, 60, 600), Word("garden", 150, 180, 600), Word("wall", 320, 340, 600)]
+    lower = [Word("into", 40, 60, 588), Word("garden", 156, 186, 588), Word("shed", 320, 340, 588)]
+    assert hits(upper + lower) == []  # shifted by a fifth of its width

@@ -18,7 +18,7 @@ It runs in six stages, which you can run together or one at a time:
 | `punctuation` | double spaces, space before a comma, `,,` `..` `.,`, words run together (`to\textbf{The}`), unbalanced brackets |
 | `spelling` | unknown words, via aspell (British English by default), with suggestions |
 | `grammar` | common slips: *a apple*, *could of*, *more then*, *its a*, *your welcome*, *her's*, lower-case *i* |
-| `layout` | needs the typeset PDF beside the `.tex` (macOS): a paragraph whose last line is one word; lines that start or end with a lone *I* (2+ in a paragraph, 3+ on a page); the same word starting or ending two lines running, or directly above itself |
+| `layout` | needs the typeset PDF beside the `.tex` (macOS): a paragraph whose last line is one word; lines that start or end with a lone *I* (2+ in a paragraph, 3+ on a page); the same word starting or ending two lines running, or squarely above itself (askew is fine) |
 
 The first layout check of a PDF takes a minute or so (it reads every letter's
 position); after that it is cached until the book is typeset again.
@@ -91,8 +91,9 @@ one per line:
 
 - `tex-check-words.txt` beside the `.tex` file, for that book's names,
   dialect and invented words. It travels with the book.
-- `words.txt` in this repository, for good words everywhere (*heathland*,
-  *Ericsson*). It is in git, so mistakes show in the history.
+- `words.txt` in this repository's folder, for good words everywhere
+  (*heathland*, *Ericsson*). It is gitignored, so the names you add never
+  reach a public repository; the Done view is the record of what went in.
   `--no-personal-words` leaves it out.
 
 To start a book's list:
@@ -146,7 +147,7 @@ the address it opens, so no other web page can press its buttons.
 |---|---|---|
 | `tex-check-words.txt` | beside the `.tex` | this book's accepted words |
 | `tex-check-done.jsonl` | beside the `.tex` | every OK, add and undo (append-only) |
-| `words.txt` | this repository | your accepted words for every book |
+| `words.txt` | this repository's folder (gitignored) | your accepted words for every book |
 | `places.txt` | `~/.local/share/tex-check/` | the GeoNames place names |
 | `british.txt` | `~/.local/share/tex-check/` | the larger British word list |
 | `layout-cache/` | `~/.local/share/tex-check/` | word positions read from each PDF |
