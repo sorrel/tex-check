@@ -24,6 +24,10 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
 - `groups.py`: sorts findings into groups. Spelling is split into likely
   typos, other, in quotations, foreign/bold, names, variants (shown in that
   order); the rules are evaluated in a different order (see `classify`).
+- `progress.py`: the one-line status on stderr (terminal only) for a step
+  over a second. `check_file(progress=)` names each stage; stages name slow
+  sub-steps through `settings.progress`; `pdfwords.read(say=)` only when
+  the PDF is not cached.
 - `report.py`: terminal layout (shared `scripts/` conventions) and `--json`;
   `terminal.py` has the styles, headings and paths it uses.
 - `wordlists.py`: the book's `tex-check-words.txt` and the personal

@@ -42,7 +42,8 @@ class StaleId(LookupError):
 class Session:
     def __init__(self, path: Path, stages: list, options: Options, gazetteer: set[str] | None,
                  opener: Callable[..., str | None] = open_at,
-                 clock: Callable[[], float] = time.monotonic):
+                 clock: Callable[[], float] = time.monotonic,
+                 progress: Callable[[str], None] | None = None):
         self.path = path
         self.stages = stages
         self.options = options
@@ -52,13 +53,17 @@ class Session:
         self.version = 0
         self.error: str | None = None
         self.checking = False
+        #: The step a re-check is on, and when it started, for the page.
+        self._step: tuple[str, float] | None = None
         #: Every word added this session, in order. A check notes how many
         #: there were when it started, and drops any added while it ran:
         #: it read the lists before they were written.
         self._added: list[str] = []
         self._lock = threading.Lock()  # guards the findings below
         self._check_lock = threading.Lock()  # one check at a time
-        self._check()  # an unreadable file at start-up is the caller's to report
+        # An unreadable file at start-up is the caller's to report. `progress`
+        # shows this first check on the terminal; later ones show on the page.
+        self._check(progress)
         self.watcher = Watcher(self._watched, Debouncer(clock=clock), self.recheck)
 
     def _watched(self) -> list[Path]:
@@ -72,9 +77,9 @@ class Session:
     def log(self) -> Path:
         return donelog.log_file(self.path)
 
-    def _check(self) -> None:
+    def _check(self, progress: Callable[[str], None] | None = None) -> None:
         added_before = len(self._added)
-        run = check_file(self.path, self.stages, self.options, self.gazetteer)
+        run = check_file(self.path, self.stages, self.options, self.gazetteer, progress)
         with self._lock:
             late = set(self._added[added_before:])
         self._publish(run, late)
@@ -114,23 +119,32 @@ class Session:
         with self._check_lock:
             self.checking = True
             try:
-                self._check()
+                self._check(self._note_step)
                 self.error = None
             except Exception as err:  # shown on the page, never fatal
                 self.error = f"could not check {self.path.name}: {err}"
             finally:
                 self.checking = False
+                self._step = None
+
+    def _note_step(self, text: str) -> None:
+        self._step = (text, self.clock())
 
     # ── what the page is told ───────────────────────────────────────────────
 
     def status(self) -> dict:
         left = self.watcher.debouncer.seconds_left()
         state = "checking" if self.checking else "waiting" if left is not None else "idle"
+        step = self._step if self.checking else None
         return {
             "version": self.version,
             "state": state,
             "seconds_left": None if left is None else round(left),
             "error": self.error,
+            # What a re-check is doing, and for how long (a first read of a
+            # PDF takes a minute or two).
+            "step": step and step[0],
+            "step_seconds": step and round(self.clock() - step[1]),
         }
 
     def findings(self) -> dict:

@@ -288,7 +288,9 @@ function drawStatus(status) {
     line.textContent = `Saved · re-checking in ${status.seconds_left}s`;
     line.className = "waiting";
   } else if (status.state === "checking") {
-    line.textContent = "Checking…";
+    // A step running a few seconds says what it is and for how long.
+    const slow = status.step && status.step_seconds >= 2;
+    line.textContent = slow ? `Checking · ${status.step} · ${status.step_seconds}s` : "Checking…";
   } else {
     line.textContent = "Re-checks 30s after a save";
   }

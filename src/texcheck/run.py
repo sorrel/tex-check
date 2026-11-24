@@ -5,6 +5,7 @@ the word lists are read afresh on every run, so a word added in the browser
 counts at the next re-check, and the terminal sees it too.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -114,13 +115,21 @@ def settings_for(path: Path, options: Options, gazetteer: set[str] | None) -> Se
     )
 
 
-def check_file(path: Path, stages: list, options: Options, gazetteer: set[str] | None) -> Run:
-    """Read `path` and run `stages` over it. Raises OSError if it cannot be read."""
+def check_file(path: Path, stages: list, options: Options, gazetteer: set[str] | None,
+               progress: Callable[[str], None] | None = None) -> Run:
+    """Read `path` and run `stages` over it. Raises OSError if it cannot be read.
+
+    `progress` is told each step as it starts (see progress.py).
+    """
+    say = progress or (lambda _: None)
+    say(f"Reading {path.name}")
     source = Source(read(path), str(path))
     prose = extract(source.text)
     settings = settings_for(path, options, gazetteer)
+    settings.progress = say
     results: list[tuple[object, list[Finding] | str]] = []
     for stage in stages:
+        say(stage.TITLE)
         try:
             results.append((stage, stage.run(prose, settings)))
         except Skipped as err:

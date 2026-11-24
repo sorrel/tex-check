@@ -43,6 +43,10 @@ tex-check book.tex --web             # in the browser
 tex-check book.tex --json            # for other tools
 ```
 
+⏳ A step that takes more than a second (reading a PDF for the first time,
+asking macOS's dictionary) shows what it is doing and for how long, on one
+line that clears when the report starts.
+
 Exit status: 0 nothing found, 1 findings, 2 error. `tex-check --help` lists
 every option.
 
