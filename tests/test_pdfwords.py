@@ -1,7 +1,5 @@
 """Reading word positions from the typeset PDF (macOS PDFKit)."""
 
-from __future__ import annotations
-
 import json
 import subprocess
 

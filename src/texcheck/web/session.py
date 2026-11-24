@@ -10,8 +10,6 @@ action (OK, add, undo) in the done log (see donelog), which is also where
 OK marks are read from.
 """
 
-from __future__ import annotations
-
 import secrets
 import threading
 import time
@@ -23,7 +21,15 @@ from .. import donelog, wordlists
 from ..differences import describe, marked
 from ..groups import Group, Item, group_findings
 from ..opener import open_at
-from ..run import CONTEXT_WIDTH, Located, Options, Run, check_file, context_of, snippet_parts
+from ..run import (
+    CONTEXT_WIDTH,
+    Located,
+    Options,
+    Run,
+    check_file,
+    context_of,
+    snippet_parts,
+)
 from .watcher import Debouncer, Watcher
 
 SCOPES = ("book", "personal")
@@ -110,7 +116,7 @@ class Session:
             try:
                 self._check()
                 self.error = None
-            except Exception as err:  # noqa: BLE001: shown on the page, never fatal
+            except Exception as err:  # shown on the page, never fatal
                 self.error = f"could not check {self.path.name}: {err}"
             finally:
                 self.checking = False

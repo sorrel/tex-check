@@ -4,9 +4,13 @@ The page's buttons make the Mac type into Texifier and write word lists, and
 every page in the browser can send requests to a port on loopback.
 """
 
-from __future__ import annotations
-
-from texcheck.web.security import CSP, SECURITY_HEADERS, Request, TokenGate, check_request
+from texcheck.web.security import (
+    CSP,
+    SECURITY_HEADERS,
+    Request,
+    TokenGate,
+    check_request,
+)
 
 TOKEN = "a-very-secret-token"
 PORT = 8766

@@ -20,8 +20,6 @@ are compared, but the window never reaches across it, so a chorus is not
 flagged. Between ordinary paragraphs the window carries on.
 """
 
-from __future__ import annotations
-
 import re
 from collections import Counter
 
@@ -44,7 +42,7 @@ SHORT = 12
 WORD = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*")
 
 #: Long words that turn up everywhere; repeating them is not a slip.
-COMMON = set("""
+COMMON = frozenset("""
 about above after again against along already although always among another
 anyone anything around because before behind being below between could
 didn't doesn't don't every everyone everything first going little might
@@ -59,41 +57,36 @@ okay they'd you'd we'd she'd he'd anywhere somewhere everywhere whatever
 
 
 def _key(word: str) -> str:
-    key = word.replace("’", "'").lower()
-    return key[:-2] if key.endswith("'s") else key
+    """The word as compared: straight apostrophe, lower case, no 's."""
+    return word.replace("’", "'").lower().removesuffix("'s")
+
+
+def _flagged(gap: int, uses: int, both_capitals: bool) -> bool:
+    """Whether a word's use `gap` words after its last one is a near repeat."""
+    near = gap <= CLOSE or uses <= RARE
+    return 1 < gap <= WINDOW and near and not both_capitals
 
 
 def run(prose, settings) -> list[Finding]:
     text = prose.text
     uses = Counter(_key(m.group()) for m in WORD.finditer(text))
     found: list[Finding] = []
-    window: list[tuple[int, str, re.Match, int]] = []  # (index, key, match, base)
+    last: dict[str, tuple[int, bool]] = {}  # key → (word number, capitalised) of its last use
     index = 0
     for base, para in paragraphs(text):
         words = list(WORD.finditer(para))
-        short = len(words) < SHORT
-        if short:
-            window = []  # a verse line or heading: nothing reaches across it
+        if short := len(words) < SHORT:
+            last = {}  # a verse line or heading: nothing reaches across it
         for match in words:
-            key = _key(match.group())
             index += 1
-            if len(key) < MIN_LETTERS or key in COMMON:
+            word, key, start = match.group(), _key(match.group()), base + match.start()
+            capital = word[0].isupper()
+            if len(key) < MIN_LETTERS or key in COMMON or (capital and prose.bold[start]):
                 continue
-            start = base + match.start()
-            if match.group()[0].isupper() and prose.bold[start]:
-                continue
-            window = [w for w in window if index - w[0] <= WINDOW]
-            last = next((w for w in reversed(window) if w[1] == key), None)
-            if last is not None:
-                gap = index - last[0]
-                both_capitals = last[2].group()[0].isupper() and match.group()[0].isupper()
-                near = gap <= CLOSE or uses[key] <= RARE
-                if gap > 1 and near and not both_capitals:
-                    found.append(Finding(
-                        NAME, start, base + match.end(),
-                        f"“{key}” again, {gap} words after the last",
-                    ))
-            window.append((index, key, match, base))
+            if (before := last.get(key)) and _flagged(index - before[0], uses[key], before[1] and capital):
+                found.append(Finding(NAME, start, base + match.end(),
+                                     f"“{key}” again, {index - before[0]} words after the last"))
+            last[key] = (index, capital)
         if short:
-            window = []
+            last = {}
     return found

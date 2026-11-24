@@ -4,8 +4,6 @@ Each stage is a module with NAME, TITLE, BLURB and run(prose, settings).
 To add a stage, write the module and add it to STAGES.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from pathlib import Path
 

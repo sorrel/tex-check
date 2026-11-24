@@ -5,8 +5,6 @@ typos. A word aspell rejects but either of these knows is moved to its own
 group, unless its reason is a strong one (a missing apostrophe, say).
 """
 
-from __future__ import annotations
-
 import subprocess
 import sys
 

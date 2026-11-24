@@ -5,8 +5,6 @@ has been downloaded would change which group a word lands in. Tests that
 want a second opinion patch `dictionaries.ask_macos` or `load` themselves.
 """
 
-from __future__ import annotations
-
 import pytest
 
 from texcheck import dictionaries

@@ -4,8 +4,6 @@ Near-identical spellings are hard to tell apart by eye (an extra "l"
 especially), so every suggestion says what changed and marks the letters.
 """
 
-from __future__ import annotations
-
 import pytest
 
 from texcheck.differences import describe, marked

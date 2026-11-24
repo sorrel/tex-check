@@ -9,8 +9,6 @@ source, not where removing a command happened to leave two spaces. TeX
 collapses them in the PDF anyway, so they are tidiness, not errors in print.
 """
 
-from __future__ import annotations
-
 import re
 
 from ..findings import Finding
@@ -51,14 +49,13 @@ FULL_STOP_COMMA = re.compile(r"([^\W\d_]+)\.[,;]")
 def run(prose, settings) -> list[Finding]:
     found = []
     for base, para in paragraphs(prose.text):
-        for m in DOUBLE_SPACE.finditer(para):
-            if prose.is_contiguous(base + m.start(), base + m.end()):
-                found.append(Finding(NAME, base + m.start(), base + m.end(), "double space"))
-
+        found += [Finding(NAME, base + m.start(), base + m.end(), "double space")
+                  for m in DOUBLE_SPACE.finditer(para)
+                  if prose.is_contiguous(base + m.start(), base + m.end())]
         for pattern, message in RULES:
-            for m in pattern.finditer(para):
-                g = 1 if pattern.groups else 0
-                found.append(Finding(NAME, base + m.start(g), base + m.end(g), message))
+            g = 1 if pattern.groups else 0  # the rule's own span, if it marks one
+            found += [Finding(NAME, base + m.start(g), base + m.end(g), message)
+                      for m in pattern.finditer(para)]
 
         # ".," is fine after an abbreviation ("etc.,", "e.g.,"), otherwise a slip.
         for m in FULL_STOP_COMMA.finditer(para):

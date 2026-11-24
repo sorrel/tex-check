@@ -1,14 +1,12 @@
 """Layout findings sorted into groups, like spelling's."""
 
-from __future__ import annotations
-
 import pytest
 
+from tests.test_layout import line, page
 from texcheck.checks import STAGES, layout
 from texcheck.groups import group_findings
 from texcheck.report import Style, print_report, print_summary
 from texcheck.run import Options, check_file
-from tests.test_layout import line, page
 
 SRC = ("\\begin{document}\n"
        "The gate was shut and the dog was barking at the gate as if it knew we were there.\n\n"

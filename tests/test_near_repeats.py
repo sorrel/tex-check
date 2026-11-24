@@ -1,9 +1,7 @@
 """Stage: the same noticeable word again within a few lines."""
 
-from __future__ import annotations
-
 from texcheck.checks import Settings, near_repeats
-from texcheck.prose import extract
+from texcheck.latex import extract
 
 
 def found(tex: str) -> list[str]:

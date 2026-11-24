@@ -12,8 +12,6 @@ survives edits elsewhere and lapses if that sentence is rewritten. Two
 identical sentences share a mark, which is the price of not using lines.
 """
 
-from __future__ import annotations
-
 import json
 import secrets
 from dataclasses import asdict, dataclass, fields

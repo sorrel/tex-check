@@ -13,8 +13,6 @@ Lower-case words are always checked, so a typo that happens to match a place
 Data: GeoNames (https://www.geonames.org), licensed CC BY 4.0.
 """
 
-from __future__ import annotations
-
 import io
 import os
 import re

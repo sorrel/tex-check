@@ -11,8 +11,6 @@ suggestion is a different word, not a correction, and saying so in letters
 would be noise.
 """
 
-from __future__ import annotations
-
 import difflib
 import unicodedata
 
@@ -39,7 +37,7 @@ def _swap_at(a: str, b: str) -> int | None:
     """The index i where a and b differ only by a[i], a[i+1] swapped."""
     if len(a) != len(b):
         return None
-    diff = [i for i, (x, y) in enumerate(zip(a, b)) if x != y]
+    diff = [i for i, (x, y) in enumerate(zip(a, b, strict=True)) if x != y]
     if len(diff) == 2 and diff[1] == diff[0] + 1 and a[diff[0]] == b[diff[1]] and a[diff[1]] == b[diff[0]]:
         return diff[0]
     return None
@@ -51,7 +49,7 @@ def _case_note(word: str, suggestion: str) -> str:
         return ""
     if suggestion.isupper() and len(suggestion) > 1:
         return f"capitals {suggestion}"
-    changed = [s for w, s in zip(word, suggestion) if w != s]
+    changed = [s for w, s in zip(word, suggestion, strict=False) if w != s]
     return ", ".join(f"capital {s}" if s.isupper() else f"small {s}" for s in changed)
 
 
@@ -80,32 +78,37 @@ def describe(word: str, suggestion: str) -> str:
     word, suggestion = _straight(word), _straight(suggestion)
     if word == suggestion:
         return ""
-    if suggestion.replace("'", "") == word:
-        return "missing apostrophe"
-    if word.replace("'", "") == suggestion:
-        return "extra apostrophe"
-    if suggestion.replace(" ", "") == word:
-        return "space added"
-    if suggestion.replace("-", "") == word:
-        return "hyphen added"
+    for test, note in ((suggestion.replace("'", "") == word, "missing apostrophe"),
+                       (word.replace("'", "") == suggestion, "extra apostrophe"),
+                       (suggestion.replace(" ", "") == word, "space added"),
+                       (suggestion.replace("-", "") == word, "hyphen added")):
+        if test:
+            return note
     if word.lower() == suggestion.lower():
         return _case_note(word, suggestion)
     if _strip_accents(word).lower() == _strip_accents(suggestion).lower():
-        accented = [ch for ch in word if _strip_accents(ch) != ch]
-        if accented:
-            return "no accent on " + ", ".join(_strip_accents(ch) for ch in accented)
-        return "accent on " + ", ".join(ch for ch in suggestion if _strip_accents(ch) != ch)
+        return _accent_note(word, suggestion)
     edits = _letter_edits(word, suggestion)
-    if edits is None:
-        return ""
-    # Case differences in the letters the two share ("lyrca" → "Lycra").
-    a, b = word.lower(), suggestion.lower()
-    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+    return ", ".join(edits + _case_edits(word, suggestion)) if edits is not None else ""
+
+
+def _accent_note(word: str, suggestion: str) -> str:
+    """"no accent on e" or "accent on é": the two differ only in accents."""
+    if accented := [ch for ch in word if _strip_accents(ch) != ch]:
+        return "no accent on " + ", ".join(_strip_accents(ch) for ch in accented)
+    return "accent on " + ", ".join(ch for ch in suggestion if _strip_accents(ch) != ch)
+
+
+def _case_edits(word: str, suggestion: str) -> list[str]:
+    """Case differences in the letters the two share ("lyrca" → "Lycra":
+    "capital L")."""
+    edits = []
+    matcher = difflib.SequenceMatcher(None, word.lower(), suggestion.lower(), autojunk=False)
+    for op, i1, i2, j1, j2 in matcher.get_opcodes():
         if op == "equal":
-            for w, s in zip(word[i1:i2], suggestion[j1:j2]):
-                if w != s:
-                    edits.append(f"capital {s}" if s.isupper() else f"small {s}")
-    return ", ".join(edits)
+            edits += [f"capital {s}" if s.isupper() else f"small {s}"
+                      for w, s in zip(word[i1:i2], suggestion[j1:j2], strict=False) if w != s]
+    return edits
 
 
 def marked(word: str, suggestion: str) -> list[tuple[str, bool]]:
@@ -121,12 +124,11 @@ def marked(word: str, suggestion: str) -> list[tuple[str, bool]]:
     if swap is not None:
         flags[swap] = flags[swap + 1] = True
     else:
-        for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        for op, _, _, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
             if op in ("insert", "replace"):
-                for j in range(j1, j2):
-                    flags[j] = True
+                flags[j1:j2] = [True] * (j2 - j1)
     runs: list[tuple[str, bool]] = []
-    for ch, flag in zip(suggestion, flags):
+    for ch, flag in zip(suggestion, flags, strict=True):
         if runs and runs[-1][1] == flag:
             runs[-1] = (runs[-1][0] + ch, flag)
         else:

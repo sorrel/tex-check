@@ -12,14 +12,12 @@ what lets the routing be tested as a pure function. Three things matter:
   without a request means the tab has gone; the process should go too.
 """
 
-from __future__ import annotations
-
 import threading
 import time
 import webbrowser
-from typing import TextIO
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import TextIO
 from urllib.parse import parse_qsl, urlsplit
 
 from .routes import Router
@@ -40,23 +38,11 @@ def build_handler(router: Router) -> type[BaseHTTPRequestHandler]:
             """Deliberately silent: see the module docstring."""
 
         def _respond(self) -> None:
-            parts = urlsplit(self.path)
-            try:
-                length = int(self.headers.get("Content-Length") or 0)
-            except ValueError:
-                length = 0
-            if length > MAX_BODY_BYTES:
-                self.send_response(413)
+            if (request := self._read_request()) is None:
+                self.send_response(413)  # the body is too large to read
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
-            request = Request(
-                method=self.command,
-                path=parts.path,
-                query=dict(parse_qsl(parts.query)),
-                headers=dict(self.headers),
-                body=self.rfile.read(length) if length else b"",
-            )
             response = router.handle(request)
             self.send_response(response.status)
             self.send_header("Content-Type", response.content_type)
@@ -65,6 +51,23 @@ def build_handler(router: Router) -> type[BaseHTTPRequestHandler]:
                 self.send_header(name, value)
             self.end_headers()
             self.wfile.write(response.body)
+
+        def _read_request(self) -> Request | None:
+            """The request as the router sees it, or None if its body is too big."""
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                length = 0
+            if length > MAX_BODY_BYTES:
+                return None
+            parts = urlsplit(self.path)
+            return Request(
+                method=self.command,
+                path=parts.path,
+                query=dict(parse_qsl(parts.query)),
+                headers=dict(self.headers),
+                body=self.rfile.read(length) if length else b"",
+            )
 
         do_GET = _respond
         do_POST = _respond
@@ -84,6 +87,15 @@ def listen_for_quit(stream: TextIO, stop: Callable[[], None]) -> None:
             return
 
 
+def _stop_when_idle(server: ThreadingHTTPServer, router: Router, idle_timeout: float) -> None:
+    """Shut the server down once no request has come for `idle_timeout` seconds."""
+    while True:
+        time.sleep(5)
+        if time.monotonic() - router.last_request > idle_timeout:
+            server.shutdown()
+            return
+
+
 def serve(router: Router, port: int = DEFAULT_PORT, open_browser: bool = True,
           idle_timeout: float = IDLE_TIMEOUT_SECONDS,
           on_ready: Callable[[str, int, Callable[[], None]], None] | None = None,
@@ -100,14 +112,7 @@ def serve(router: Router, port: int = DEFAULT_PORT, open_browser: bool = True,
     url = f"http://127.0.0.1:{actual_port}/?k={router.token}"
     watcher = router.session.watcher
 
-    def watchdog() -> None:
-        while True:
-            time.sleep(5)
-            if time.monotonic() - router.last_request > idle_timeout:
-                server.shutdown()
-                return
-
-    threading.Thread(target=watchdog, daemon=True).start()
+    threading.Thread(target=_stop_when_idle, args=(server, router, idle_timeout), daemon=True).start()
     if keyboard is not None:
         threading.Thread(target=listen_for_quit, args=(keyboard, server.shutdown), daemon=True).start()
     watcher.start()

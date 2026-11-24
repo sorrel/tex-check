@@ -10,8 +10,6 @@ there is nothing a request could say that reaches outside this one book and
 its two word lists.
 """
 
-from __future__ import annotations
-
 import json
 import mimetypes
 import threading

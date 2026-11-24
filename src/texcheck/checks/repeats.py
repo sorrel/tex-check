@@ -5,8 +5,6 @@ across a lyric line break are left alone. The check runs across LaTeX markup
 ("the \\textbf{the}") and across source line breaks within a paragraph.
 """
 
-from __future__ import annotations
-
 import re
 
 from ..findings import Finding

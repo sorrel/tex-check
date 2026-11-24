@@ -3,8 +3,6 @@
 A fake clock drives the 30-second wait, so nothing here sleeps.
 """
 
-from __future__ import annotations
-
 import os
 import shutil
 
@@ -225,7 +223,7 @@ def test_open_finds_the_text_that_was_checked(session):
 
 # ── OK marks, the done log and undo ─────────────────────────────────────────
 
-from texcheck import donelog  # noqa: E402
+from texcheck import donelog
 
 
 def uses_of(session, word):

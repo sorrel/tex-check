@@ -18,8 +18,6 @@ was if its reason is a strong one (a missing apostrophe, say). Nothing
 leaves the machine except the one-off download.
 """
 
-from __future__ import annotations
-
 import subprocess
 import sys
 import urllib.request
