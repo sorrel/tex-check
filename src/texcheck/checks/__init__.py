@@ -4,6 +4,7 @@ Each stage is a module with NAME, TITLE, BLURB and run(prose, settings).
 To add a stage, write the module and add it to STAGES.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -12,6 +13,10 @@ from . import grammar, layout, near_repeats, punctuation, repeats, spelling
 STAGES = [repeats, near_repeats, punctuation, spelling, grammar, layout]
 BY_NAME = {stage.NAME: stage for stage in STAGES}
 ALIASES = {"repeat": "repeats", "near": "near-repeats", "punct": "punctuation", "spell": "spelling", "grammar": "grammar"}
+
+
+def _quiet(_: str) -> None:
+    """The default progress: say nothing."""
 
 
 @dataclass
@@ -28,6 +33,8 @@ class Settings:
     pdf: Path | None = None  # the typeset book beside the .tex, for layout
     pdf_stale: bool = False  # the PDF is older than the .tex
     stats: dict = field(default_factory=dict)  # stages leave figures here for the report
+    #: Names the step now running, for the terminal's status line (progress.py).
+    progress: Callable[[str], None] = _quiet
 
 
 def resolve(names: list[str]) -> list:

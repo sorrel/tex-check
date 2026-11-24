@@ -7,6 +7,7 @@ from pathlib import Path
 from . import __version__, dictionaries, donelog, places, wordlists
 from .checks import STAGES, resolve
 from .groups import group_findings
+from .progress import Progress
 from .report import Style, as_json, dump_json, print_report
 from .run import Options, check_file
 
@@ -107,6 +108,11 @@ def choose_stages(args: argparse.Namespace) -> list:
     return resolve(names)
 
 
+def _progress() -> Progress:
+    """The status line for slow steps, on stderr when it is a terminal."""
+    return Progress(sys.stderr, enabled=sys.stderr.isatty())
+
+
 def _fail(message: str) -> int:
     print(f"tex-check: {message}", file=sys.stderr)
     return 2
@@ -129,7 +135,11 @@ def main(argv: list[str] | None = None) -> int:
     if missing := next((p for p in args.files if not p.is_file()), None):
         return _fail(f"no such file: {missing}")
 
-    gazetteer = None if args.no_places else places.load()
+    gazetteer = None
+    if not args.no_places:
+        with _progress() as progress:
+            progress.say("Loading place names")
+            gazetteer = places.load()
     style = Style(colour=not args.no_colour and not args.json and sys.stdout.isatty())
     if args.web:
         return web(args.files[0], stages, _options(args), gazetteer, args, style)
@@ -156,7 +166,8 @@ def check_files(args: argparse.Namespace, stages: list, options: Options, gazett
     json_items: list[dict] = []
     unknown_words: set[str] = set()
     for path in args.files:
-        run = check_file(path, stages, options, gazetteer)
+        with _progress() as progress:
+            run = check_file(path, stages, options, gazetteer, progress=progress.say)
         for stage, outcome in run.results:
             if isinstance(outcome, list):
                 any_findings |= bool(outcome)
@@ -187,7 +198,8 @@ def web(path: Path, stages: list, options: Options, gazetteer, args: argparse.Na
     from .web.server import serve
     from .web.session import Session
 
-    session = Session(path, stages, options, gazetteer)
+    with _progress() as progress:  # the first check, before the server starts
+        session = Session(path, stages, options, gazetteer, progress=progress.say)
     router = Router(session, secrets.token_urlsafe(24), args.port)
 
     def ready(url: str, port: int, stop) -> None:

@@ -104,8 +104,12 @@ def _cache_file(pdf: Path, cache: Path) -> Path:
 
 
 def read(pdf: Path, cache: Path | None = None, run: Callable = subprocess.run,
-         platform: str = sys.platform) -> list[list[Word]]:
-    """Every page's words, in reading order. Raises Unreadable."""
+         platform: str = sys.platform,
+         say: Callable[[str], None] = lambda _: None) -> list[list[Word]]:
+    """Every page's words, in reading order. Raises Unreadable.
+
+    `say` is told when the slow part starts: reading a PDF not yet cached.
+    """
     if platform != "darwin":
         raise Unreadable("the layout checks need macOS (PDFKit)")
     cache = cache or data_dir() / "layout-cache"
@@ -113,6 +117,7 @@ def read(pdf: Path, cache: Path | None = None, run: Callable = subprocess.run,
     if stored.is_file():
         raw = stored.read_text(encoding="utf-8")
     else:
+        say(f"Layout: first read of {pdf.name} since typesetting (a minute or two)")
         try:
             result = run(["osascript", "-l", "JavaScript", "-", str(pdf)], input=_SCRIPT,
                          capture_output=True, text=True, timeout=TIMEOUT, check=False)

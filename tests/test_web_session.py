@@ -144,7 +144,8 @@ def test_save_shows_waiting_then_rechecks(session):
     assert status["state"] == "waiting" and status["seconds_left"] == 30
     session.clock.now += 30
     session.watcher.poll()
-    assert session.status() == {"version": 2, "state": "idle", "seconds_left": None, "error": None}
+    assert session.status() == {"version": 2, "state": "idle", "seconds_left": None, "error": None,
+                                "step": None, "step_seconds": None}
 
 
 @needs_aspell
@@ -323,3 +324,34 @@ def test_groups_carry_their_section(session):
     from texcheck.groups import Group
     payload = session._group_payload(Group("layout-runt", "One-word last lines", "b", section="Layout"))
     assert payload["section"] == "Layout"
+
+
+class SlowStage:
+    """A stage that names a slow step, then reports what the page would see."""
+
+    NAME, TITLE, BLURB = "slow", "Slow", "takes a while"
+
+    def __init__(self, clock):
+        self.clock, self.session, self.seen = clock, None, []
+
+    def run(self, prose, settings):
+        settings.progress("Layout: first read of document.pdf")
+        self.clock.now += 47
+        if self.session:  # not during the first check, made before the session exists
+            self.seen.append(self.session.status())
+        return []
+
+
+def test_a_recheck_tells_the_page_its_step_and_how_long(tmp_path):
+    tex = tmp_path / "doc.tex"
+    tex.write_text("\\begin{document}\nHello.\n\\end{document}\n")
+    clock = Clock()
+    stage = SlowStage(clock)
+    session = Session(tex, [stage], Options(), None, clock=clock)
+    stage.session = session
+    session.recheck()
+    [during] = stage.seen
+    assert during["state"] == "checking"
+    assert during["step"] == "Layout: first read of document.pdf"
+    assert during["step_seconds"] == 47
+    assert session.status()["step"] is None

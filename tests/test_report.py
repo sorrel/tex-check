@@ -117,7 +117,7 @@ def test_no_macos_flag_reaches_the_options(monkeypatch, tmp_path):
     tex.write_text("Hello.\n")
     seen = []
 
-    def fake_check(path, stages, options, gazetteer):
+    def fake_check(path, stages, options, gazetteer, **kwargs):
         seen.append(options)
         raise SystemExit(0)
 

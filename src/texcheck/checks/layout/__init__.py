@@ -36,10 +36,11 @@ def run(prose, settings) -> list[Finding]:
     if settings.pdf is None:
         raise Skipped("no PDF beside the .tex (typeset it first)")
     try:
-        pages = pdfwords.read(settings.pdf)
+        pages = pdfwords.read(settings.pdf, say=settings.progress)
     except pdfwords.Unreadable as err:
         raise Skipped(str(err)) from err
 
+    settings.progress("Layout: matching the typeset lines to the source")
     text = prose.text
     spans = [m.span() for m in TOKEN.finditer(text)]
     tokens = [normal(text[a:b]) for a, b in spans]

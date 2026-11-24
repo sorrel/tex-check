@@ -113,6 +113,7 @@ def run(prose, settings) -> list[Finding]:
         (m, word) for m, word in candidates(prose, settings) if word.lower() not in accepted
     ]
     distinct = sorted({word for _, word in occurrences})
+    settings.progress(f"Spelling: asking aspell about {len(distinct):,} words")
     unknown = ask_aspell(distinct, settings.dictionary) if distinct else {}
 
     # Only words aspell does not know are looked up, so a place never hides a real word.
@@ -120,6 +121,8 @@ def run(prose, settings) -> list[Finding]:
     for word in places:
         del unknown[word]
     british = dictionaries.load() if settings.british else None
+    if settings.macos and unknown:
+        settings.progress(f"Spelling: asking macOS's dictionary about {len(unknown):,} words")
     macos = dictionaries.ask_macos(sorted(unknown)) if settings.macos else set()
     settings.stats[NAME] = {
         "places": len(places),
