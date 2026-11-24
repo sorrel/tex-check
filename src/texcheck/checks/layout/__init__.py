@@ -8,7 +8,8 @@ back to the source, so every finding still opens at its line:column.
 * **Lone "I"s at the edges:** a line that starts or ends with the word "I",
   too often in one paragraph or on one page.
 * **Stacks:** the same word starting, or ending, two lines running; the
-  same word on three lines running, one above another even at an angle;
+  same word on three lines running, one above another a little askew,
+  or on four or more even at an angle;
   and any word squarely above the same word (askew is fine for two).
 
 The modules: find.py (the checks and their thresholds), repair.py (words

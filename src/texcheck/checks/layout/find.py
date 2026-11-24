@@ -18,13 +18,16 @@ SHORT_OF_MARGIN = 15.0
 #: apart. Askew is fine (asked for 23 November 2026): only a word squarely on
 #: top of itself looks wrong. On the test book: 50% gave 447, 10% gives 148.
 ABOVE_SHIFT = 0.10
-#: A stack of three or more: each word's centre at most this share of the
-#: word's width from the one above, so 1.0 is "the two overlap". Askew counts
-#: here (asked for 24 November 2026): three of the same word down a page
-#: catch the eye even at an angle. On the test book: 0.5 gave 11, 1.0 gives 28.
-STACK_SHIFT = 1.0
-#: How many lines running make a stack of the same word.
+#: Stacks: the same word on several lines running, each word's centre at
+#: most this share of the word's width from the one above (1.0 is "the two
+#: overlap"). Askew counts (asked for 24 November 2026): three of a word
+#: down a page catch the eye even at an angle, four more so. On the test
+#: book three high: 1.0 gave 46, 0.75 gives 26; four high at 1.0: 4.
+STACK_SHIFT = 0.75
+TALL_STACK_SHIFT = 1.0
+#: How many lines running make a stack, and a tall one (its own group).
 STACK_LINES = 3
+TALL_STACK_LINES = 4
 #: How near the margin, in points, a word must be to count as at the edge.
 EDGE = 2.0
 #: A paragraph's last word ends with one of these; a heading's does not.
@@ -33,7 +36,7 @@ _ENDS_PARAGRAPH = set(".!?:;)”’—…'\"")
 
 @dataclass
 class Hit:
-    kind: str         # runt, lone-i, starts, ends, stack, above (see groups.LAYOUT_GROUPS)
+    kind: str         # runt, lone-i, starts, ends, tall-stack, stack, above (groups.LAYOUT_GROUPS)
     page: int         # 0-based PDF page
     line: int         # 1-based body line on that page
     word: Word        # where to point
@@ -207,31 +210,42 @@ def _above(page: _Page, index: int, skip_first: bool, skip_last: bool) -> list[t
 
 def _tall_stacks(page: _Page) -> tuple[list[Hit], set[int]]:
     """The same word on STACK_LINES or more lines running, each within
-    STACK_SHIFT of the one above; and the id() of every word in them, so a
-    pair inside one is not reported again as "directly above".
+    STACK_SHIFT of the one above, or on TALL_STACK_LINES or more within
+    TALL_STACK_SHIFT; and the id() of every word in them, so a pair inside
+    one is not reported again as "directly above".
 
     A stack made only of first words, or only of last words, is left to
     "starts" and "ends". Titles break a stack.
     """
-    below: dict[int, list[Word]] = {}   # id() of a word → its stack so far, ending with it
+    # id() of a word → its stack so far, ending with it, and how far each
+    # word in it sits from the one above. The nearest match above is taken,
+    # so if it is too far for STACK_SHIFT, every other one is too.
+    below: dict[int, tuple[list[Word], list[float]]] = {}
     for index in range(1, len(page.lines)):
         if page.title[index] or page.title[index - 1]:
             continue
         upper = list(zip(page.lines[index - 1], page.keys[index - 1], strict=True))
         for word, k in zip(page.lines[index], page.keys[index], strict=True):
             near = [(_shift(up, word), up) for up, uk in upper if k and uk == k]
-            near = [(shift, up) for shift, up in near if shift < STACK_SHIFT]
+            near = [(shift, up) for shift, up in near if shift < TALL_STACK_SHIFT]
             if near:
-                up = min(near, key=lambda pair: pair[0])[1]
-                below[id(word)] = [*below.get(id(up), [up]), word]
-    tops = {id(stack[-2]) for stack in below.values()}   # extended by a word below
+                shift, up = min(near, key=lambda pair: pair[0])
+                stack, shifts = below.get(id(up), ([up], []))
+                below[id(word)] = ([*stack, word], [*shifts, shift])
+    tops = {id(stack[-2]) for stack, _ in below.values()}   # extended by a word below
     hits, stacked = [], set()
-    for stack in below.values():
-        if len(stack) < STACK_LINES or id(stack[-1]) in tops or _edges_only(page, stack):
+    for stack, shifts in below.values():
+        if id(stack[-1]) in tops or _edges_only(page, stack):
+            continue
+        if len(stack) >= TALL_STACK_LINES:
+            kind = "tall-stack"
+        elif len(stack) >= STACK_LINES and max(shifts) < STACK_SHIFT:
+            kind = "stack"
+        else:
             continue
         stacked |= {id(word) for word in stack}
         first = _line_of(page, stack[0])
-        hits.append(Hit("stack", page.number, first + 1, stack[0],
+        hits.append(Hit(kind, page.number, first + 1, stack[0],
                         f"“{shown(stack[0])}” on {len(stack)} lines running, one above another"))
     return hits, stacked
 

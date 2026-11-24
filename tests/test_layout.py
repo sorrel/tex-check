@@ -262,9 +262,18 @@ def test_a_stack_squarely_on_top_is_reported_once():
         "“garden” on 3 lines running, one above another"]
 
 
-def test_four_running_is_one_stack():
-    assert hits(_stacked(150, 160, 170, 180)) == [
-        "“garden” on 4 lines running, one above another"]
+def test_four_running_is_one_stack_of_its_own_kind():
+    assert kinds(_stacked(150, 160, 170, 180)) == [("tall-stack", "“garden” on 4 lines running, one above another")]
+
+
+def test_four_running_may_lean_further_than_three():
+    # Each over three-quarters of its width along: too far for three, not for four.
+    assert hits(_stacked(150, 174, 198)) == []
+    assert kinds(_stacked(150, 174, 198, 222)) == [("tall-stack", "“garden” on 4 lines running, one above another")]
+
+
+def kinds(*pages) -> list[tuple[str, str]]:
+    return [(h.kind, h.message) for h in layout.find(list(pages))]
 
 
 def test_two_askew_is_not_a_stack():
