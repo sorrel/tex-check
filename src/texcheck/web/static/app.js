@@ -15,7 +15,9 @@
 "use strict";
 
 const TOKEN = document.querySelector('meta[name="token"]').content;
-const SPELLING = ["typos", "other", "quotes", "bold", "names", "variants", "elsewhere", "spelling"];
+const SPELLING = ["typos", "other", "quotes", "bold", "names", "variants", "spelling"];
+// Spelling's least likely mistakes, shown after every other group.
+const LAST = "elsewhere";
 const DONE = "__done__";
 const POLL_MS = 2000;
 const ACTIONS = { ok: "Marked OK", book: "Added for this book", personal: "Added everywhere" };
@@ -123,7 +125,8 @@ function drawGroups() {
   nav.replaceChildren();
   const shown = (g) => g.count > 0 || !SPELLING.includes(g.key) || g.key === "spelling";
   const spelling = state.data.groups.filter((g) => SPELLING.includes(g.key) && shown(g));
-  const others = state.data.groups.filter((g) => !SPELLING.includes(g.key));
+  const others = state.data.groups.filter((g) => !SPELLING.includes(g.key) && g.key !== LAST);
+  const last = state.data.groups.find((g) => g.key === LAST && (g.count > 0 || g.key === state.group));
   const link = (group) => {
     const classes = ["group-link"];
     if (group.count === 0) classes.push("empty");
@@ -150,6 +153,11 @@ function drawGroups() {
       section = g.section;
     }
     nav.append(link(g));
+  }
+  if (last) {
+    nav.append(el("hr", { class: "divider" }));
+    nav.append(el("p", { class: "section-label" }, "Spelling"));
+    nav.append(link(last));
   }
   $("done-link").setAttribute("aria-current", String(state.group === DONE));
 }

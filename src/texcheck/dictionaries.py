@@ -12,9 +12,9 @@ are asked about the words aspell rejects, and only those:
   Texifier underlines with. Broad, but it also accepts words someone has
   "learned" on this Mac, so its yes is weaker.
 
-Neither is the judge. A word either knows is moved out of Likely typos to a
-group of its own, saying which knew it; `groups.classify` keeps it where it
-was if its reason is a strong one (a missing apostrophe, say). Nothing
+Neither is the judge. A word either knows is moved out of Likely typos to
+"Probably correct", noted if only macOS knew it; `groups.classify` keeps
+it where it was if its reason is a strong one (a missing apostrophe, say). Nothing
 leaves the machine except the one-off download.
 """
 
@@ -107,6 +107,10 @@ def ask_macos(words: list[str], run: Callable = subprocess.run,
     return {line for line in result.stdout.splitlines() if line in asked}
 
 
+#: What `second_opinions` says of a word only macOS knows.
+MACOS_ONLY = "known to macOS"
+
+
 def second_opinions(words: list[str], british: set[str] | None,
                     macos: set[str]) -> dict[str, str]:
     """{word: which dictionary knew it} for the words either one accepts."""
@@ -119,5 +123,5 @@ def second_opinions(words: list[str], british: set[str] | None,
         elif in_list:
             notes[word] = "in the larger British list"
         elif on_mac:
-            notes[word] = "known to macOS"
+            notes[word] = MACOS_ONLY
     return notes

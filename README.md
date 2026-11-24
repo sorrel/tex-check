@@ -54,7 +54,8 @@ every option.
 
 Findings are grouped so the likely mistakes come first: **Likely typos**,
 **Other unknown words**, **In quotations**, **Foreign and bold phrases**,
-**Names**, **Variants**, and **Known to other dictionaries**.
+**Names** and **Variants**. **Probably correct** comes after everything
+else (see below).
 
 Each word says why it was flagged, and each suggestion says how it differs,
 with the changed letters underlined, because a doubled or missing letter is
@@ -69,8 +70,9 @@ easy to miss by eye:
 aspell's British dictionary is small, so two larger ones give a second
 opinion: macOS's own British spellchecker, and the SCOWL British word list
 (download it once with `tex-check --update-dictionary`). A word either one
-knows moves to *Known to other dictionaries*. `--no-macos` and
-`--no-british` turn them off.
+knows moves to *Probably correct*, shown last. macOS also accepts words
+"learned" on this Mac, so a word only it knows is marked *only this Mac
+knows it*. `--no-macos` and `--no-british` turn them off.
 
 **Word lists**, one word per line:
 

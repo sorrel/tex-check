@@ -179,8 +179,40 @@ def test_words_another_dictionary_knows_get_their_own_group(groups_of, monkeypat
     monkeypatch.setattr(dictionaries, "ask_macos", lambda words, **kw: {"laundrette", "Ziggys", "practiced"})
     groups = groups_of("We went to the laundrette, which Ziggys practiced in, and a lyrca.")
     assert words_in(groups, "elsewhere") == ["laundrette"]
-    assert groups["elsewhere"].items[0].reason == "known to macOS"
+    assert groups["elsewhere"].items[0].reason == "only this Mac knows it"
     # Strong reasons win over another dictionary's say-so.
     assert "Ziggys" in words_in(groups, "names")
     assert "practiced" in words_in(groups, "typos")
     assert "lyrca" in words_in(groups, "typos")
+
+
+def test_probably_correct_comes_after_every_stage(tmp_path, monkeypatch):
+    from texcheck import dictionaries
+    monkeypatch.setattr(wordlists, "personal_file", lambda: tmp_path / "personal.txt")
+    monkeypatch.setattr(dictionaries, "ask_macos", lambda words, **kw: {"laundrette"})
+    tex = tmp_path / "doc.tex"
+    tex.write_text("\\begin{document}\nThe the laundrette, and a lyrca.\n\\end{document}\n")
+    keys = [g.key for g in group_findings(check_file(tex, STAGES, Options(), gazetteer=None))]
+    assert keys[-1] == "elsewhere"
+    assert keys.count("elsewhere") == 1
+
+
+def test_spelling_keeps_its_place_when_every_word_is_probably_correct(tmp_path, monkeypatch):
+    from texcheck import dictionaries
+    monkeypatch.setattr(wordlists, "personal_file", lambda: tmp_path / "personal.txt")
+    monkeypatch.setattr(dictionaries, "ask_macos", lambda words, **kw: {"laundrette"})
+    tex = tmp_path / "doc.tex"
+    tex.write_text("\\begin{document}\nWe went to the laundrette.\n\\end{document}\n")
+    run = check_file(tex, STAGES, Options(), gazetteer=None)
+    keys = [g.key for g in group_findings(run)]
+    stages = [stage.NAME for stage, _ in run.results]
+    assert keys[-1] == "elsewhere"
+    assert keys.index("spelling") == stages.index("spelling")
+
+
+def test_a_word_in_the_british_list_gets_no_note(groups_of, monkeypatch):
+    from texcheck import dictionaries
+    monkeypatch.setattr(dictionaries, "load", lambda path=None: {"laundrette"})
+    monkeypatch.setattr(dictionaries, "ask_macos", lambda words, **kw: {"laundrette"})
+    [item] = groups_of("We went to the laundrette.")["elsewhere"].items
+    assert item.note == "" and item.reason == ""
