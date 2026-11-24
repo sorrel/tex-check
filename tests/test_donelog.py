@@ -1,7 +1,5 @@
 """The action log beside each book: OK marks and word-list adds, undoable."""
 
-from __future__ import annotations
-
 from texcheck import donelog, wordlists
 
 

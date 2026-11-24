@@ -9,8 +9,6 @@ These are heuristics: each finding is a prompt to look, not a verdict. A full
 grammar checker (LanguageTool) could be added as a further stage later.
 """
 
-from __future__ import annotations
-
 import re
 
 from ..findings import Finding
@@ -54,18 +52,18 @@ def lower_after_full_stop(m) -> str | None:
 RULES = [
     (re.compile(r"\b([Aa])\s+([aeiouAEIOU][\w'’-]*)"), a_before_vowel),
     (re.compile(r"\b([Aa]n)\s+([b-df-hj-np-tv-zB-DF-HJ-NP-TV-Z][\w'’-]*)"), an_before_consonant),
-    (re.compile(r"\b(?:could|should|would|must|might)\s+of\b", re.I),
+    (re.compile(r"\b(?:could|should|would|must|might)\s+of\b", re.IGNORECASE),
      lambda m: f"“{m.group()}”: should it be “… have”?"),
     (re.compile(r"\b(?:more|less|better|worse|rather|bigger|smaller|older|younger|"
                 r"greater|fewer|higher|lower|faster|slower|longer|shorter|"
-                r"easier|harder|other)\s+then\b", re.I),
+                r"easier|harder|other)\s+then\b", re.IGNORECASE),
      lambda m: f"“{m.group()}”: should it be “than”?"),
     (re.compile(r"\bits\s+(?:a|an|the|not|been|going|gone|got|so|too|very|never|always)\b"),
      lambda m: f"“{m.group()}”: should it be “it's”?"),
-    (re.compile(r"\bit['’]s\s+own\b", re.I), lambda m: "“it's own”: should it be “its own”?"),
-    (re.compile(r"\byour\s+(?:a|an|the|welcome|going|not)\b", re.I),
+    (re.compile(r"\bit['’]s\s+own\b", re.IGNORECASE), lambda m: "“it's own”: should it be “its own”?"),
+    (re.compile(r"\byour\s+(?:a|an|the|welcome|going|not)\b", re.IGNORECASE),
      lambda m: f"“{m.group()}”: should it be “you're”?"),
-    (re.compile(r"\b(her|your|their|our)['’]s\b", re.I),
+    (re.compile(r"\b(her|your|their|our)['’]s\b", re.IGNORECASE),
      lambda m: f"“{m.group()}”: possessives take no apostrophe (“{m.group(1)}s”)"),
     (re.compile(r"\b(?:a|an|the)\s+(?:a|an|the)\b"), lambda m: f"“{m.group()}”: two articles"),
     (re.compile(r"(?<![\w'’.-])i(?![\w'’.-])"), lambda m: "lower-case “i”"),

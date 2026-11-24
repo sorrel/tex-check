@@ -1,7 +1,5 @@
 """The socket half: a real server on a port the kernel chooses."""
 
-from __future__ import annotations
-
 import json
 import shutil
 import threading

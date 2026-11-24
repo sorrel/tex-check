@@ -10,14 +10,14 @@ says which wins when several apply. Stages other than spelling keep one
 group each, in the order they run.
 """
 
-from __future__ import annotations
-
 import re
 import unicodedata
+from bisect import bisect_left
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from .prose import KNOWN_COMMANDS, Prose, Source
+from .commands import KNOWN_COMMANDS
+from .prose import Prose, Source
 from .run import Located, Run, context_of
 
 #: Spelling's groups, in the order they are shown.
@@ -155,14 +155,28 @@ def _macro_slip(word: str, uses: list[Located], source: Source) -> str | None:
     return None
 
 
-def _starts_sentence(prose: Prose, at: int) -> bool:
-    before = prose.text[:at].rstrip(" \t“‘(")
-    return not before or before[-1] in _SENTENCE_END
+def _starts_sentence(text: str, at: int) -> bool:
+    """True if the word at `at` opens a sentence (quotes and brackets aside)."""
+    k = at
+    while k > 0 and text[k - 1] in " \t“‘(":
+        k -= 1
+    return k == 0 or text[k - 1] in _SENTENCE_END
+
+
+def _quoted_spans(text: str) -> list[tuple[int, int]]:
+    """Every quoted stretch, in order (they never overlap)."""
+    return [m.span() for m in _QUOTED.finditer(text)]
+
+
+def _inside(spans: list[tuple[int, int]], start: int, end: int) -> bool:
+    """True if [start, end) lies strictly inside one of the sorted `spans`."""
+    k = bisect_left(spans, (start,)) - 1
+    return k >= 0 and spans[k][0] < start and end < spans[k][1]
 
 
 def classify(word: str, uses: list[Located], spans: list[tuple[int, int]],
              suggestions: list[str], prose: Prose, source: Source,
-             elsewhere: str = "") -> tuple[str, str]:
+             elsewhere: str = "", quoted: list[tuple[int, int]] | None = None) -> tuple[str, str]:
     """The group key for one unknown word, and a note to show beside it.
 
     `spans` are the word's uses as prose offsets. The rules run in this
@@ -170,12 +184,14 @@ def classify(word: str, uses: list[Located], spans: list[tuple[int, int]],
     a lower-case "ok" is a variant before it is a typo. Variants come after
     quotes and bold because aspell splits almost anything ("secours" →
     "sec ours"), so a foreign phrase would otherwise pass as a variant.
+    `quoted` is `_quoted_spans(prose.text)`, worked out once per run.
     """
     slip = _macro_slip(word, uses, source)
     if slip:
         return "typos", f"missing \\ before \\{slip}?"
-    quoted = [m.span() for m in _QUOTED.finditer(prose.text)]
-    if all(any(a < start and end < b for a, b in quoted) for start, end in spans):
+    if quoted is None:
+        quoted = _quoted_spans(prose.text)
+    if all(_inside(quoted, start, end) for start, end in spans):
         return "quotes", ""
     if all(prose.bold[start] for start, _ in spans):
         return "bold", ""
@@ -184,7 +200,7 @@ def classify(word: str, uses: list[Located], spans: list[tuple[int, int]],
         return "elsewhere", elsewhere
     if any(fold(s) == fold(word) for s in suggestions):
         return "variants", ""
-    if word[0].isupper() and any(not _starts_sentence(prose, start) for start, _ in spans):
+    if word[0].isupper() and any(not _starts_sentence(prose.text, start) for start, _ in spans):
         return "names", ""
     # Lower-case, or capitalised only because it starts a sentence.
     if suggestions:
@@ -199,12 +215,13 @@ def _spelling_groups(run: Run, findings: list) -> list[Group]:
 
     groups = {key: Group(key, title, blurb) for key, title, blurb in SPELLING_GROUPS}
     known = run.stats.get("spelling", {}).get("elsewhere", {})
+    quoted = _quoted_spans(run.prose.text)
     for word, found in sorted(by_word.items(), key=lambda kv: kv[1][0].start):
         uses = [Located(f, run.prose, run.source) for f in found]
         spans = [(f.start, f.end) for f in found]
-        key, note = classify(word, uses, spans, found[0].suggestions, run.prose, run.source,
-                             known.get(word, ""))
         suggestions = found[0].suggestions
+        key, note = classify(word, uses, spans, suggestions, run.prose, run.source,
+                             known.get(word, ""), quoted)
         groups[key].items.append(Item(
             f"spelling:{word}", "spelling", word, word, note, suggestions, uses,
             reason(word, suggestions, note),

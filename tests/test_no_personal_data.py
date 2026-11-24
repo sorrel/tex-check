@@ -11,8 +11,6 @@ that file the term check is skipped, visibly, as it will be for anyone who
 clones the repository, for whom there is nothing to protect.
 """
 
-from __future__ import annotations
-
 import re
 import subprocess
 from pathlib import Path

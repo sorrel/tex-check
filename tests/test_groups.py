@@ -1,7 +1,5 @@
 """Sorting findings into groups, so the likely mistakes come first."""
 
-from __future__ import annotations
-
 import shutil
 
 import pytest
@@ -103,7 +101,7 @@ def test_empty_spelling_is_one_group(groups_of):
 
 # ── reasons ─────────────────────────────────────────────────────────────────
 
-from texcheck.groups import reason  # noqa: E402
+from texcheck.groups import reason
 
 
 @pytest.mark.parametrize(("word", "suggestions", "expected"), [
@@ -143,7 +141,7 @@ def test_items_carry_their_reason(groups_of):
 
 # ── OK marks ────────────────────────────────────────────────────────────────
 
-from texcheck.run import context_of  # noqa: E402
+from texcheck.run import context_of
 
 
 def _check(tmp_path, monkeypatch, text, mark=None):

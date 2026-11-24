@@ -18,11 +18,10 @@ for its own case, are applied to every request before any route sees it.
    origin, so the page makes no outside request and the token goes nowhere.
 """
 
-from __future__ import annotations
-
 import hmac
 import json
 from dataclasses import dataclass, field
+from typing import Self
 
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self'; "
@@ -71,7 +70,7 @@ class Response:
     extra_headers: dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def json(cls, payload: dict, status: int = 200) -> "Response":
+    def json(cls, payload: dict, status: int = 200) -> Self:
         return cls(status, json.dumps(payload).encode(), "application/json")
 
 
@@ -137,18 +136,11 @@ def _forbidden(why: str) -> Response:
 
 
 def check_request(request: Request, gate: TokenGate, port: int) -> Response | None:
-    """Return a refusal, or ``None`` if the request may proceed."""
-    host = (request.header("Host") or "").casefold()
-    if host not in {f"127.0.0.1:{port}", f"localhost:{port}"}:
-        return _forbidden("unrecognised Host")
+    """Return a refusal, or ``None`` if the request may proceed.
 
-    origin = request.header("Origin")
-    if origin is not None and origin.casefold() not in {
-        f"http://127.0.0.1:{port}",
-        f"http://localhost:{port}",
-    }:
-        return _forbidden("cross-origin request")
-
+    The checks run in order and the first refusal wins; the token check
+    comes last because it can spend the one-use URL token.
+    """
     # The split that matters: an /api/ call *acts*, and is made by our own
     # script, which can set a header. Everything else is a document or an
     # asset, fetched by the browser itself — and a browser cannot put a custom
@@ -156,27 +148,46 @@ def check_request(request: Request, gate: TokenGate, port: int) -> Response | No
     # one there refuses the page its own stylesheet and script (mail-triage
     # learnt this the hard way: its page rendered unstyled and stuck).
     is_api = request.path.startswith("/api/")
+    if refusal := _check_host(request, port) or _check_fetch_site(request, is_api):
+        return refusal
+    return _check_api_token(request, gate) if is_api else _check_page_token(request, gate)
 
+
+def _check_host(request: Request, port: int) -> Response | None:
+    """Host and Origin must name this server (no DNS rebinding, no other site)."""
+    local = {f"127.0.0.1:{port}", f"localhost:{port}"}
+    if (request.header("Host") or "").casefold() not in local:
+        return _forbidden("unrecognised Host")
+    origin = request.header("Origin")
+    if origin is not None and origin.casefold() not in {f"http://{h}" for h in local}:
+        return _forbidden("cross-origin request")
+    return None
+
+
+def _check_fetch_site(request: Request, is_api: bool) -> Response | None:
+    """Sec-Fetch-Site, where the browser sends it. "none" means a top-level,
+    user-initiated navigation: right for a document, never for an API call."""
     fetch_site = request.header("Sec-Fetch-Site")
-    if fetch_site is not None:
-        # "none" means a top-level, user-initiated navigation: right for a
-        # document, and never right for an API call.
-        allowed = {"same-origin"} if is_api else {"same-origin", "none"}
-        if fetch_site.casefold() not in allowed:
-            return _forbidden("cross-site request")
+    allowed = {"same-origin"} if is_api else {"same-origin", "none"}
+    if fetch_site is not None and fetch_site.casefold() not in allowed:
+        return _forbidden("cross-site request")
+    return None
 
-    if is_api:
-        # The header token, and only the header token. A cookie rides along
-        # automatically on any request a browser can be tricked into making,
-        # so it must never be enough to act. This is what keeps CSRF
-        # closed now that a cookie exists at all.
-        if not gate.matches(request.header("X-Tex-Check-Token")):
-            return _forbidden("bad or missing token")
+
+def _check_api_token(request: Request, gate: TokenGate) -> Response | None:
+    """The header token, and only the header token. A cookie rides along
+    automatically on any request a browser can be tricked into making, so it
+    must never be enough to act. This is what keeps CSRF closed now that a
+    cookie exists at all."""
+    if gate.matches(request.header("X-Tex-Check-Token")):
         return None
+    return _forbidden("bad or missing token")
 
-    # The cookie is what makes a refresh — and every asset — work. Once the
-    # URL token has been spent the address bar holds a bare "/", so without
-    # this a ⌘R answers a JSON error instead of the page.
+
+def _check_page_token(request: Request, gate: TokenGate) -> Response | None:
+    """The cookie is what makes a refresh — and every asset — work. Once the
+    URL token has been spent the address bar holds a bare "/", so without
+    this a ⌘R answers a JSON error instead of the page."""
     if gate.matches(_cookie(request, SESSION_COOKIE)):
         return None
     if request.path == "/" and gate.spend_url_token(request.query.get("k")):

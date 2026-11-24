@@ -8,10 +8,12 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
 
 ## How it fits together
 
-- `src/texcheck/prose.py`: the heart of it. Turns LaTeX into plain prose in
-  which every character keeps its source offset, so checks are simple regexes
-  over clean English and still report the true line:column. Command handling
-  is table-driven (`DROP_ARGS`, `HEADINGS`, `NOTES`, `BOLD`, `QUOTES`, ...):
+- `prose.py`: `Prose`, plain text in which every character keeps its
+  source offset, so checks are simple regexes over clean English and still
+  report the true line:column; `Source` maps offsets to lines.
+- `latex.py`: the one-pass reader that writes `Prose` (`extract`). Plain
+  text is copied in runs, not a character at a time. `commands.py` holds
+  its tables (`DROP_ARGS`, `HEADINGS`, `NOTES`, `BOLD`, `QUOTES`, ...):
   teach it a new macro by adding it to a table, not by writing code.
   Unlisted commands vanish and their `{groups}` are read as text.
 - `src/texcheck/checks/`: one module per stage (`NAME`, `TITLE`, `BLURB`,
@@ -22,7 +24,8 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
 - `groups.py`: sorts findings into groups. Spelling is split into likely
   typos, other, in quotations, foreign/bold, names, variants (shown in that
   order); the rules are evaluated in a different order (see `classify`).
-- `report.py`: terminal layout (shared `scripts/` conventions) and `--json`.
+- `report.py`: terminal layout (shared `scripts/` conventions) and `--json`;
+  `terminal.py` has the styles, headings and paths it uses.
 - `wordlists.py`: the book's `tex-check-words.txt` and the personal
   `words.txt` at this repo's root (found via the editable install; falls
   back to `~/.local/share/tex-check/words.txt`).
@@ -104,7 +107,9 @@ heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`
   or fewer in the text, within 4 otherwise; about 230. Paragraphs under 12
   words (lyric lines, headings) break the window.
 
-- Layout (`checks/layout.py`, `pdfwords.py`): reads `document.pdf` beside
+- Layout (`checks/layout/`: `find.py` the checks and thresholds,
+  `repair.py` run-together words, `match.py` back to the prose; and
+  `pdfwords.py`): reads `document.pdf` beside
   `document.tex` through PDFKit (`osascript -l JavaScript`), macOS only.
   Lessons (23 November 2026): xpdf's pdftotext/pdftohtml give no word
   positions; PDFKit's page text and `characterBoundsAtIndex` disagree (line
@@ -132,7 +137,7 @@ its absence would publish it.
   Java 17+: `/usr/bin/java` is 11, but Homebrew's keg-only openjdk (27) is
   installed at `/opt/homebrew/opt/openjdk/bin/java`, so it can run locally.
   The public API would send the text off the machine: ask before that.
-- Layout thresholds (`checks/layout.py` constants) are the user's to set;
+- Layout thresholds (`checks/layout/find.py` constants) are the user's to set;
   "directly above" means centres within 10% of the word width (askew is
   fine, by request); still the largest group.
 - A tense check (an unintended slip from past to present in narration,
@@ -144,4 +149,5 @@ its absence would publish it.
     uv tool install --editable .     # once; gives `tex-check` on PATH
     tex-check document.tex --only repeats
     tex-check document.tex --web     # browser view
-    uv run pytest                    # tests
+    uv run pytest                    # tests (CI runs them on 3.12 too)
+    uvx ruff check                   # lint, config in pyproject.toml

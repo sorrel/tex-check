@@ -1,7 +1,7 @@
 # tex-check
 
 Proofread the prose in a LaTeX file. LaTeX commands are never reported, and
-every finding points at the line and column in your `.tex` source.
+every finding points at its line and column in your `.tex` source.
 
 ```
 Repeated words  the same word twice in a row ──────────────────── 1
@@ -9,159 +9,117 @@ Repeated words  the same word twice in a row ───────────�
                         …she put the the kettle on and \textbf{waited}…
 ```
 
-It runs in six stages, which you can run together or one at a time:
+## 🔍 What it checks
 
 | Stage | Finds |
 |---|---|
 | `repeats` | the same word twice in a row, even across markup (`the \textbf{the}`) |
-| `near-repeats` | a word of five or more letters again within a few words: within 25 if it is rare in the text (six uses or fewer), within 4 if not. Names and lyric lines are left alone |
-| `punctuation` | double spaces, space before a comma, `,,` `..` `.,`, words run together (`to\textbf{The}`), unbalanced brackets |
-| `spelling` | unknown words, via aspell (British English by default), with suggestions |
-| `grammar` | common slips: *a apple*, *could of*, *more then*, *its a*, *your welcome*, *her's*, lower-case *i* |
-| `layout` | needs the typeset PDF beside the `.tex` (macOS): a paragraph whose last line is one word; lines that start or end with a lone *I* (2+ in a paragraph, 3+ on a page); the same word starting or ending two lines running, or squarely above itself (askew is fine) |
+| `near-repeats` | a longer word again a few words later |
+| `punctuation` | double spaces, `,,` `..` `.,`, a space before a comma, words run together, unbalanced brackets |
+| `spelling` | unknown words (aspell, British English), with suggestions and a reason |
+| `grammar` | common slips: *a apple*, *could of*, *more then*, *its a*, lower-case *i* |
+| `layout` | line breaks in the typeset PDF (macOS): one-word last lines, lone *I*s at line edges, a word starting, ending or sitting squarely above itself on the next line |
 
-The first layout check of a PDF takes a minute or so (it reads every letter's
-position); after that it is cached until the book is typeset again.
+Layout needs `document.pdf` beside `document.tex`. Its first run reads every
+letter's position (about a minute for a long book); after that it is cached
+until you typeset again.
 
-## Install
+## 📦 Install
 
-Needs Python 3.12+, [uv](https://docs.astral.sh/uv/), and aspell for the spelling stage:
+Needs Python 3.12+, [uv](https://docs.astral.sh/uv/) and aspell:
 
 ```
 brew install aspell
 uv tool install --editable .
 ```
 
-## Use
+## ▶️ Use
 
 ```
-tex-check book.tex                      # every stage
-tex-check book.tex --only repeats       # one stage (or a list: punct,spell)
+tex-check book.tex                   # every stage
+tex-check book.tex --only spell      # one stage, or a list: punct,spell
 tex-check book.tex --skip grammar
-tex-check book.tex --json               # for other tools
-tex-check book.tex --web                # in the browser (see below)
+tex-check book.tex --web             # in the browser
+tex-check book.tex --json            # for other tools
 ```
-
-Spelling findings are sorted into groups, likely typos first: **Likely
-typos**, **In quotations** (dialogue, dialect), **Foreign and bold
-phrases**, **Names** and **Variants** (*ok*/OK, *heathland*/heath land),
-plus **Other unknown words** for anything aspell has no suggestion for,
-and **Known to other dictionaries** last.
-
-aspell's British dictionary is small, so two larger ones give a second
-opinion on the words it rejects: **macOS's own British spellchecker** (the
-one Texifier underlines with) and a **larger British word list** (SCOWL,
-from wordlist.aspell.net; download it once with
-`tex-check --update-dictionary`). A word either knows moves to *Known to
-other dictionaries*, saying which knew it. A word with a strong reason
-stays put even so: macOS accepts *Ziggys* and *practiced*, but a missing
-apostrophe or an American spelling is still worth a look. `--no-macos` and
-`--no-british` turn either off.
-
-Every suggestion says how it differs from your word, and the changed
-letters are underlined, because an extra or missing letter is easy to miss
-by eye:
-
-```
-  lyrca        → Lycra (r and c swapped, capital L), Lyra, lyric
-  laundrette   → launderette (missing an e)
-  seatbelt     → seat belt (space added)
-```
-Web addresses are not spell-checked.
-
-Each word also says **why** it was flagged, worked out from aspell's
-suggestions, which on their own never explain:
-
-```
-  document.tex:786:167   Ziggys        ×2   missing apostrophe?   → Ziggy's, Ziggy, Piggy's
-  document.tex:404:46    synthesisers       British spelling; aspell knows only the American
-  document.tex:2162:304  accoutrement       aspell knows only the plural
-  document.tex:485:282   practiced          American spelling?    → practised, …
-```
-
-Others: *capitals differ*, *usually two words*, *usually hyphenated*,
-*accent differs*, *missing \ before \bsq?* (a command that lost its
-backslash), and *not in the dictionary*.
 
 Exit status: 0 nothing found, 1 findings, 2 error. `tex-check --help` lists
 every option.
 
-**Word lists.** Words aspell doesn't know but you do go in one of two lists,
-one per line:
+## 🔤 Spelling
 
-- `tex-check-words.txt` beside the `.tex` file, for that book's names,
-  dialect and invented words. It travels with the book.
-- `words.txt` in this repository's folder, for good words everywhere
-  (*heathland*, *Ericsson*). It is gitignored, so the names you add never
-  reach a public repository; the Done view is the record of what went in.
-  `--no-personal-words` leaves it out.
+Findings are grouped so the likely mistakes come first: **Likely typos**,
+**Other unknown words**, **In quotations**, **Foreign and bold phrases**,
+**Names**, **Variants**, and **Known to other dictionaries**.
 
-To start a book's list:
+Each word says why it was flagged, and each suggestion says how it differs,
+with the changed letters underlined, because a doubled or missing letter is
+easy to miss by eye:
 
 ```
-tex-check book.tex --list-unknown > tex-check-words.txt   # then delete the real typos
+  Ziggys        ×2   missing apostrophe?   → Ziggy's, Ziggy, Piggy's
+  lyrca              not in the dictionary → Lycra (r and c swapped, capital L), Lyra
+  laundrette         not in the dictionary → launderette (missing an e)
 ```
 
-To accept place names automatically, download a gazetteer once (about
-8 MB, from [GeoNames](https://www.geonames.org)):
+aspell's British dictionary is small, so two larger ones give a second
+opinion: macOS's own British spellchecker, and the SCOWL British word list
+(download it once with `tex-check --update-dictionary`). A word either one
+knows moves to *Known to other dictionaries*. `--no-macos` and
+`--no-british` turn them off.
+
+**Word lists**, one word per line:
+
+- `tex-check-words.txt` beside the `.tex`: this book's names and dialect.
+  Start one with `tex-check book.tex --list-unknown > tex-check-words.txt`,
+  then delete the real typos.
+- `words.txt` in this folder: good words for every book. It is gitignored,
+  so names you add stay private.
+
+**Place names:** `tex-check --update-places --countries GB,IE` downloads
+GeoNames (about 8 MB) once, and capitalised place names are then accepted.
+
+Bold capitalised words (names, in this house style) and ALL-CAPS words are
+skipped unless you add `--spell-bold` or `--spell-capitals`.
+
+## 🌐 In the browser
 
 ```
-tex-check --update-places --countries GB,IE      # add any countries your text needs
+tex-check book.tex --web             # opens http://127.0.0.1:8766/
 ```
 
-Bold capitalised words (`\textbf{Name}`) and ALL-CAPS words are not
-spell-checked: `--spell-bold` and `--spell-capitals` include them. Another
-dictionary: `--dict en_US` (see `aspell dicts`).
+Every use of a word is a row with **Open in Texifier** and **OK** (fine
+here). A word's header has **Add for this book** and **Add everywhere**.
+Keys: `j`/`k` move, `o` open, `x` OK, `b` add for this book, `e` add
+everywhere.
 
-## In the browser
+The **Done** view lists every OK and add, newest first, each with **Undo**.
+OK marks follow the text, not the line number, so they survive edits
+elsewhere.
 
-```
-tex-check book.tex --web            # opens http://127.0.0.1:8766/
-tex-check book.tex --web --no-open --port 9000
-```
+Save in Texifier and the page re-checks 30 seconds after your last save.
+Type `q` and Return (or ctrl-C) to stop; it also stops by itself 30 minutes
+after the page is closed.
 
-The groups are down the side. Every **use** of a word is its own row, with
-its context, **Open in Texifier** and **OK** ("fine here": hides that one
-place only). A word's header has its reason, aspell's suggestions, and
-**Add for this book** / **Add everywhere** for all its uses at once.
+🔒 The server listens on 127.0.0.1 only, and every request needs the token
+from the address it opens, so no other web page can press its buttons.
 
-Every OK and every add is recorded, and the **Done** view lists them
-newest first with an **Undo** button, so a wrong click can always be found
-and put back. OK marks are matched on the text around the finding, not its
-line number, so they survive edits elsewhere and lapse if you rewrite that
-sentence. The terminal report leaves OK'd findings out too.
-
-Keys: `j`/`k` move, `o` open in Texifier, `x` OK, `b` add for this book,
-`e` add everywhere.
-
-Save in Texifier and the page re-checks 30 seconds after the last save;
-each further save restarts the wait, or press **Re-check now**. Stop it by
-typing `q` (or `quit`, `exit`) and Return, or ctrl-C; it also stops by itself 30 minutes after the page is closed.
-
-The server listens on 127.0.0.1 only and every request needs the token in
-the address it opens, so no other web page can press its buttons.
-
-## Files it keeps
+## 📁 Files it keeps
 
 | File | Where | What |
 |---|---|---|
 | `tex-check-words.txt` | beside the `.tex` | this book's accepted words |
-| `tex-check-done.jsonl` | beside the `.tex` | every OK, add and undo (append-only) |
-| `words.txt` | this repository's folder (gitignored) | your accepted words for every book |
-| `places.txt` | `~/.local/share/tex-check/` | the GeoNames place names |
-| `british.txt` | `~/.local/share/tex-check/` | the larger British word list |
+| `tex-check-done.jsonl` | beside the `.tex` | every OK, add and undo |
+| `words.txt` | this folder (gitignored) | accepted words for every book |
+| `places.txt`, `british.txt` | `~/.local/share/tex-check/` | the downloaded word lists |
 | `layout-cache/` | `~/.local/share/tex-check/` | word positions read from each PDF |
 
-Nothing is sent anywhere: the only network use is the two one-off
-downloads (GeoNames and the British word list). macOS's spellchecker runs
-on this Mac.
+Nothing leaves your Mac apart from those two one-off downloads.
 
-## Jump to a finding in Texifier (macOS, optional)
+## 🖱️ Jump to a finding in Texifier
 
-`tex-check-open book.tex:212:31` opens the file in
-[Texifier](https://www.texifier.com) with the text at that point selected.
-To get there by Cmd-clicking a location in an [iTerm](https://iterm2.com)
-report:
+`tex-check-open book.tex:212:31` opens Texifier with the text at that point
+selected. To Cmd-click a location in an [iTerm](https://iterm2.com) report:
 
 1. System Settings › Privacy & Security › Accessibility: turn on **iTerm**.
 2. iTerm › Settings › Profiles › Advanced › Semantic History › **Run command…**:
@@ -170,15 +128,14 @@ report:
    ~/.local/bin/tex-check-open "\(semanticHistory.path)" "\(semanticHistory.lineNumber)" "\(semanticHistory.columnNumber)"
    ```
 
-Files other than `.tex` still open in their default app.
-
-## Development
+## 🛠️ Development
 
 ```
-uv run pytest
+uv run pytest        # tests
+uvx ruff check       # lint
 ```
 
-Each stage is one module in `src/texcheck/checks/`. `CLAUDE.md` explains the
+Each stage is a module in `src/texcheck/checks/`. `CLAUDE.md` explains the
 design and the decisions behind it.
 
 Place-name data © GeoNames, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

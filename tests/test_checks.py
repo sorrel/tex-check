@@ -4,7 +4,8 @@ import pytest
 
 from texcheck.checks import Settings, grammar, punctuation, repeats, resolve, spelling
 from texcheck.cli import main
-from texcheck.prose import Source, extract
+from texcheck.latex import extract
+from texcheck.prose import Source
 
 
 def body(text: str) -> str:

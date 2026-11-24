@@ -5,16 +5,14 @@ the word lists are read afresh on every run, so a word added in the browser
 counts at the next re-check, and the terminal sees it too.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import wordlists
 from .checks import Settings
-from .findings import Skipped
-from .findings import Finding
-from .prose import Prose, Source, extract
+from .findings import Finding, Skipped
+from .latex import extract
+from .prose import Prose, Source
 
 
 @dataclass(frozen=True)
@@ -64,8 +62,8 @@ def snippet_parts(source: Source, loc: Located, width: int) -> tuple[bool, str, 
     before, hit, after = line[lo:left], line[left:right], line[right:hi]
     if not hit.strip():  # make whitespace visible
         hit = hit.replace(" ", "␣").replace("\t", "⇥")
-    clean = lambda text: text.replace("\t", " ")
-    return lo > 0, clean(before), clean(hit), clean(after), hi < len(line)
+    before, hit, after = (part.replace("\t", " ") for part in (before, hit, after))
+    return lo > 0, before, hit, after, hi < len(line)
 
 
 def context_of(source: Source, loc: Located) -> str:

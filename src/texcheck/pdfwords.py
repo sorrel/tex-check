@@ -11,8 +11,6 @@ pdftotext (xpdf) and pdftohtml give positions per line at best, which is
 not enough to tell which word sits above which.
 """
 
-from __future__ import annotations
-
 import hashlib
 import json
 import subprocess

@@ -1,7 +1,5 @@
 """Every route, driven as a pure function. No socket, no browser, no Texifier."""
 
-from __future__ import annotations
-
 import json
 import shutil
 

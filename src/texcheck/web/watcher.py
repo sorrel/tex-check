@@ -9,8 +9,6 @@ no dependencies and copes with editors that save by replacing the file,
 which defeats watching the file itself.
 """
 
-from __future__ import annotations
-
 import threading
 import time
 from collections.abc import Callable

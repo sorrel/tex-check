@@ -1,7 +1,5 @@
 """One check run, shared by the terminal report, --json and the browser view."""
 
-from __future__ import annotations
-
 import shutil
 
 import pytest
@@ -14,7 +12,7 @@ pytestmark = pytest.mark.skipif(not shutil.which("aspell"), reason="aspell not i
 
 
 def outcome(run, name):
-    return next(found for stage, found in run.results if stage.NAME == name)
+    return next(found for stage, found in run.results if name == stage.NAME)
 
 
 def test_check_file_finds_and_rereads_word_lists(tmp_path, monkeypatch):

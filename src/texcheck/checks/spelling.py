@@ -19,11 +19,10 @@ dictionaries.py). They are still findings; the note of which dictionary
 knew each is left in the stats for `groups` to sort by.
 """
 
-from __future__ import annotations
-
 import re
 import shutil
 import subprocess
+
 from .. import dictionaries
 from ..findings import Finding, Skipped
 from ..places import is_place
@@ -99,7 +98,7 @@ def ask_aspell(words: list[str], dictionary: str) -> dict[str, list[str]]:
         while index < len(replies) and replies[index] != "":
             reply = replies[index]
             if reply.startswith("&"):
-                head, _, tail = reply.partition(": ")
+                _, _, tail = reply.partition(": ")
                 unknown[word] = [s.strip() for s in tail.split(",")][:4]
             elif reply.startswith("#"):
                 unknown[word] = []

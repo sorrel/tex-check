@@ -16,8 +16,6 @@ There are two, because the words fall into two kinds:
 Words are compared case-insensitively, with curly apostrophes made straight.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from . import places

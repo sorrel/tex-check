@@ -1,7 +1,5 @@
 """The two word lists: one beside each book, one personal list for everything."""
 
-from __future__ import annotations
-
 import json
 import shutil
 from pathlib import Path

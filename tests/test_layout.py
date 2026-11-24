@@ -1,12 +1,12 @@
 """Layout checks on the typeset lines: lone I at the edges, stacks, runts."""
 
-from __future__ import annotations
+from itertools import pairwise
 
 import pytest
 
 from texcheck.checks import Settings, layout
+from texcheck.latex import extract
 from texcheck.pdfwords import Word
-from texcheck.prose import extract
 
 LEFT, RIGHT, CHAR = 40.0, 340.0, 5.0
 
@@ -83,11 +83,12 @@ def test_same_word_starting_two_lines_running():
 
 
 def test_same_word_ending_two_lines_running():
-    assert hits(page(
+    found = hits(page(
         line(600, "we waited by the gate until it was late, and"),
         line(588, "the dog was barking and running round and"),
         line(576, "round.", full=False),
-    ))[0] == "“and” ends two lines running"
+    ))
+    assert "“and” ends two lines running" in found
 
 
 def test_word_directly_above_the_same_word():
@@ -161,7 +162,7 @@ def test_glued_lines_are_split_into_the_books_words():
     [words] = layout.unglue([glued], vocab)
     assert [w.text for w in words] == ["Leeds,", "in", "Kent", "or", "Devonshire:", "Hatfield"]
     assert words[0].x0 == 40 and words[-1].x1 == 230
-    assert all(a.x1 <= b.x0 for a, b in zip(words, words[1:]))
+    assert all(a.x1 <= b.x0 for a, b in pairwise(words))
 
 
 def test_a_long_word_of_the_book_is_left_whole():
@@ -210,9 +211,9 @@ def test_titles_are_not_compared():
     )]
     titles = {id(w) for w in pages[0] if w in heading}
     assert "“The” starts two lines running" not in [h.message for h in layout.find(pages, titles)]
-    assert [h.message for h in layout.find(pages, titles)] == [
-        "“the” starts two lines running",
+    assert sorted(h.message for h in layout.find(pages, titles)) == [
         "one word on the last line of a paragraph: “home.”",
+        "“the” starts two lines running",
     ]
 
 

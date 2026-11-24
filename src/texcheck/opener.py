@@ -30,8 +30,6 @@ in a tex-check report jumps there. Files other than .tex open in their
 default app.
 """
 
-from __future__ import annotations
-
 import argparse
 import subprocess
 import sys
@@ -87,8 +85,22 @@ def offset_of(text: str, line: int, col: int) -> int:
     """Character offset of 1-based line and column, clamped to the line."""
     lines = text.split("\n")
     line = max(1, min(line, len(lines)))
-    start = sum(len(l) + 1 for l in lines[: line - 1])
+    start = sum(len(row) + 1 for row in lines[: line - 1])
     return start + max(0, min(col - 1, len(lines[line - 1])))
+
+
+def _word_start(text: str, i: int, floor: int) -> int:
+    """Back from i to the start of the word, not before `floor`."""
+    while i > floor and not text[i - 1].isspace():
+        i -= 1
+    return i
+
+
+def _word_end(text: str, i: int, ceiling: int) -> int:
+    """On from i to the end of the word, not past `ceiling`."""
+    while i < ceiling and not text[i].isspace():
+        i += 1
+    return i
 
 
 def unique_phrase(text: str, line: int, col: int = 1) -> str:
@@ -102,21 +114,13 @@ def unique_phrase(text: str, line: int, col: int = 1) -> str:
     line_start = text.rfind("\n", 0, pos) + 1
     line_end = text.find("\n", pos)
     line_end = len(text) if line_end == -1 else line_end
-
-    start = pos  # from the beginning of the word the column falls in
-    while start > line_start and not text[start - 1].isspace():
-        start -= 1
-    end = start
+    start = end = _word_start(text, pos, line_start)
     best = ""
     while True:
         if end < line_end:  # take the next word to the right
-            end += 1
-            while end < line_end and not text[end].isspace():
-                end += 1
+            end = _word_end(text, end + 1, line_end)
         elif start > line_start:  # out of room on the right: take a word to the left
-            start -= 1
-            while start > line_start and not text[start - 1].isspace():
-                start -= 1
+            start = _word_start(text, start - 1, line_start)
         else:
             return best
         phrase = text[start:end].strip()
@@ -135,9 +139,9 @@ def parse_location(args: list[str]) -> tuple[Path, int, int]:
         numbers = []
         while bits and bits[-1].isdigit() and len(numbers) < 2:
             numbers.insert(0, int(bits.pop()))
-        return Path(":".join(bits)), *(numbers + [1, 1])[:2]
+        return Path(":".join(bits)), *[*numbers, 1, 1][:2]
     numbers = [int(p) for p in parts[1:3] if p.isdigit()]
-    return Path(parts[0]), *(numbers + [1, 1])[:2]
+    return Path(parts[0]), *[*numbers, 1, 1][:2]
 
 
 def open_at(path: Path, line: int, col: int, app: str = APP, run=subprocess.run,
@@ -164,6 +168,11 @@ def open_at(path: Path, line: int, col: int, app: str = APP, run=subprocess.run,
         return f"could not open {path.name} in {app}: {opened.stderr.strip()}"
     if not phrase:  # an empty line: opening the file is the best we can do
         return None
+    return _jump(path, line, phrase, app, run)
+
+
+def _jump(path: Path, line: int, phrase: str, app: str, run) -> str | None:
+    """Select `phrase` in the open file through the app's Find."""
     result = run(
         ["osascript", "-e", FIND_SCRIPT.format(app=app), path.name, phrase],
         capture_output=True, text=True,
