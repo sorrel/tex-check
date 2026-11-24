@@ -239,3 +239,56 @@ def test_a_word_partly_above_at_an_angle_is_fine():
     upper = [Word("over", 40, 60, 600), Word("garden", 150, 180, 600), Word("wall", 320, 340, 600)]
     lower = [Word("into", 40, 60, 588), Word("garden", 156, 186, 588), Word("shed", 320, 340, 588)]
     assert hits(upper + lower) == []  # shifted by a fifth of its width
+
+
+def _stacked(*xs: float, word: str = "garden") -> list[Word]:
+    """Three-word lines with `word` in the middle at each x, from the top down."""
+    firsts, lasts = ["over", "into", "past", "from"], ["wall", "shed", "gate", "lane"]
+    words = []
+    for n, x in enumerate(xs):
+        y = 600 - 12 * n
+        words += [Word(firsts[n], 40, 60, y), Word(word, x, x + 30, y), Word(lasts[n], 320, 340, y)]
+    return words
+
+
+def test_three_of_a_word_one_above_another_at_an_angle():
+    # Each a third of its width along from the one above: too askew for a pair.
+    assert hits(_stacked(150, 160, 170)) == [
+        "“garden” on 3 lines running, one above another"]
+
+
+def test_a_stack_squarely_on_top_is_reported_once():
+    assert hits(_stacked(150, 150, 150)) == [
+        "“garden” on 3 lines running, one above another"]
+
+
+def test_four_running_is_one_stack_of_its_own_kind():
+    assert kinds(_stacked(150, 160, 170, 180)) == [("tall-stack", "“garden” on 4 lines running, one above another")]
+
+
+def test_four_running_may_lean_further_than_three():
+    # Each over three-quarters of its width along: too far for three, not for four.
+    assert hits(_stacked(150, 174, 198)) == []
+    assert kinds(_stacked(150, 174, 198, 222)) == [("tall-stack", "“garden” on 4 lines running, one above another")]
+
+
+def kinds(*pages) -> list[tuple[str, str]]:
+    return [(h.kind, h.message) for h in layout.find(list(pages))]
+
+
+def test_two_askew_is_not_a_stack():
+    assert hits(_stacked(150, 160)) == []
+
+
+def test_words_that_do_not_overlap_are_not_a_stack():
+    assert hits(_stacked(150, 185, 220)) == []
+
+
+def test_a_stack_of_first_words_is_left_to_starts():
+    found = hits(page(
+        line(600, "and we waited by the gate until the rain stopped"),
+        line(588, "and then we walked down to the river and back"),
+        line(576, "and so the day went on until it was dark"),
+    ))
+    assert not any("lines running, one above another" in h for h in found)
+    assert "“and” starts two lines running" in found
