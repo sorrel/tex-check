@@ -18,7 +18,7 @@ Repeated words  the same word twice in a row ───────────�
 | `punctuation` | double spaces, `,,` `..` `.,`, a space before a comma, words run together, unbalanced brackets |
 | `spelling` | unknown words (aspell, British English), with suggestions and a reason |
 | `grammar` | common slips: *a apple*, *could of*, *more then*, *its a*, lower-case *i* |
-| `layout` | line breaks in the typeset PDF (macOS): one-word last lines, lone *I*s at line edges, a word starting, ending or sitting squarely above itself on the next line |
+| `layout` | line breaks in the typeset PDF (macOS): one-word last lines, lone *I*s at line edges, a word starting, ending or sitting squarely above itself on the next line, the same word on three lines running even at an angle |
 
 Layout needs `document.pdf` beside `document.tex`. Its first run reads every
 letter's position (about a minute for a long book); after that it is cached

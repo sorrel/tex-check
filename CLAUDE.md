@@ -145,7 +145,9 @@ its absence would publish it.
   The public API would send the text off the machine: ask before that.
 - Layout thresholds (`checks/layout/find.py` constants) are the user's to set;
   "directly above" means centres within 10% of the word width (askew is
-  fine, by request); still the largest group.
+  fine, by request); still the largest group. Three or more lines running
+  of the same word count at any overlap, askew included (`STACK_SHIFT`,
+  asked for 24 November 2026): 50 on the test book.
 - A tense check (an unintended slip from past to present in narration,
   ignoring dialogue). Regexes cannot do it: it needs a tagger, LanguageTool
   or a model, and the latter two may send text off the machine, so ask.

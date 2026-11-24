@@ -47,6 +47,7 @@ LAYOUT_GROUPS = [
     ("lone-i", "Lone “I”s at line edges", "too many in a paragraph or on a page"),
     ("starts", "Same word starting lines", "two lines running"),
     ("ends", "Same word ending lines", "two lines running"),
+    ("stack", "Word stacked three high", "the same word on three or more lines running, even askew"),
     ("above", "Word above itself", "squarely on top of the same word"),
 ]
 
