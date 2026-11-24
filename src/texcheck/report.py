@@ -15,13 +15,14 @@ import shutil
 from pathlib import Path
 
 from .differences import describe, marked
-from .groups import SPELLING_GROUPS, Group, Item
+from .groups import LAST, SPELLING_GROUPS, Group, Item
 from .run import Located, Run
 from .terminal import Style, display_path, heading, plural, snippet
 
 __all__ = ["Style", "as_json", "display_path", "dump_json", "print_report", "print_summary"]
 
-_SPELLING_KEYS = {key for key, _, _ in SPELLING_GROUPS} | {"spelling"}
+#: Spelling's groups shown under its heading; LAST comes after every stage.
+_SPELLING_KEYS = {key for key, _, _ in SPELLING_GROUPS} - {LAST} | {"spelling"}
 
 
 def print_report(run: Run, groups: list[Group], style: Style, cwd: Path) -> None:
@@ -59,7 +60,9 @@ class _Printer:
         print(f"{self.style.bold('tex-check')}  {self.style.cyan(self.path)}")
         print()
         for group in self.groups:
-            if group.section:
+            if group.key == LAST:
+                self._last(group)
+            elif group.section:
                 self._grouped(group, group.section, self._section_heading, self._finding, "finding")
             elif group.key in _SPELLING_KEYS:
                 self._grouped(group, "spelling", self._spelling_heading, self._word, "word")
@@ -128,6 +131,14 @@ class _Printer:
         self._heading(group.title, group.blurb, group.key, str(n), n, group.hidden)
         for item in group.items:
             self._finding(item)
+        print()
+
+    def _last(self, group: Group) -> None:
+        """Spelling's least likely mistakes, after every stage, under a heading of their own."""
+        n = len(group.items)
+        self._heading(group.title, group.blurb, LAST, plural(n, "word"), n, group.hidden)
+        for item in group.items:
+            self._word(item)
         print()
 
     # ── rows ──
@@ -224,6 +235,8 @@ def print_summary(run: Run, groups: list[Group], style: Style) -> None:
             label = str(n)
         rows.append((stage.TITLE, label, style.count(n)))
         rows += [("  " + g.title, str(len(g.items)), style.yellow) for g in mine if g.items]
+    if LAST in by_key and by_key[LAST].items:
+        rows.append((by_key[LAST].title, str(len(by_key[LAST].items)), style.yellow))
     title_width = max(len(title) for title, _, _ in rows)
     print(style.bold("Summary"))
     for title, value, colour in rows:

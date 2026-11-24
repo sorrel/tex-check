@@ -16,6 +16,7 @@ from bisect import bisect_left
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+from . import dictionaries
 from .commands import KNOWN_COMMANDS
 from .prose import Prose, Source
 from .run import Located, Run, context_of
@@ -28,8 +29,17 @@ SPELLING_GROUPS = [
     ("bold", "Foreign and bold phrases", "set in bold, often not English"),
     ("names", "Names", "capitalised mid-sentence"),
     ("variants", "Variants", "known in another case, spacing or accent"),
-    ("elsewhere", "Known to other dictionaries", "aspell lacks them; a larger dictionary has them"),
+    ("elsewhere", "Probably correct", "aspell lacks them, but a larger dictionary has them"),
 ]
+
+#: The spelling group shown after every stage, not with the rest of
+#: spelling: words another dictionary vouches for are the least likely
+#: mistakes, so they come last.
+LAST = "elsewhere"
+
+#: The note for a word only macOS knows: its yes may be a word someone
+#: "learned" on this Mac, so it is worth a closer look.
+MAC_ONLY = "only this Mac knows it"
 
 #: Layout's groups, in the order they are shown, keyed by the finding's kind.
 LAYOUT_GROUPS = [
@@ -195,9 +205,10 @@ def classify(word: str, uses: list[Located], spans: list[tuple[int, int]],
         return "quotes", ""
     if all(prose.bold[start] for start, _ in spans):
         return "bold", ""
-    # `elsewhere` says which larger dictionary knows the word, if any.
+    # `elsewhere` says which larger dictionary knows the word, if any;
+    # only a word macOS alone knows is worth a note.
     if elsewhere and reason(word, suggestions, "") not in STRONG_REASONS:
-        return "elsewhere", elsewhere
+        return LAST, MAC_ONLY if elsewhere == dictionaries.MACOS_ONLY else ""
     if any(fold(s) == fold(word) for s in suggestions):
         return "variants", ""
     if word[0].isupper() and any(not _starts_sentence(prose.text, start) for start, _ in spans):
@@ -222,9 +233,11 @@ def _spelling_groups(run: Run, findings: list) -> list[Group]:
         suggestions = found[0].suggestions
         key, note = classify(word, uses, spans, suggestions, run.prose, run.source,
                              known.get(word, ""), quoted)
+        why = reason(word, suggestions, note)
+        if key == LAST and why == "not in the dictionary":
+            why = ""   # it is in one, just not aspell's
         groups[key].items.append(Item(
-            f"spelling:{word}", "spelling", word, word, note, suggestions, uses,
-            reason(word, suggestions, note),
+            f"spelling:{word}", "spelling", word, word, note, suggestions, uses, why,
         ))
     return [group for group in groups.values() if group.items]
 
@@ -260,6 +273,22 @@ def group_findings(run: Run, ok: set | frozenset = frozenset()) -> list[Group]:
 
 
 def _all_groups(run: Run) -> list[Group]:
+    """Every group in run order, with the LAST group moved to the end."""
+    out = _groups_in_run_order(run)
+    last = [g for g in out if g.key == LAST]
+    if not last:
+        return out
+    at = out.index(last[0])
+    out.remove(last[0])
+    spelling = {key for key, _, _ in SPELLING_GROUPS}
+    if not any(g.key in spelling for g in out):
+        # Spelling keeps its place, if only to say "nothing found".
+        stage = next(s for s, _ in run.results if s.NAME == "spelling")
+        out.insert(at, Group(stage.NAME, stage.TITLE, stage.BLURB))
+    return [*out, last[0]]
+
+
+def _groups_in_run_order(run: Run) -> list[Group]:
     out: list[Group] = []
     for stage, outcome in run.results:
         if isinstance(outcome, str):
