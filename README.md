@@ -26,7 +26,7 @@ until you typeset again.
 
 ## 📦 Install
 
-Needs Python 3.12+, [uv](https://docs.astral.sh/uv/) and aspell:
+Needs Python 3.14+, [uv](https://docs.astral.sh/uv/) and aspell:
 
 ```
 brew install aspell

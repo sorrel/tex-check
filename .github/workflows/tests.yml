@@ -30,7 +30,4 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en
       - run: uv sync --dev
       - run: uv run pytest -q
-      # The oldest Python pyproject allows: annotations are evaluated
-      # eagerly there, so a forward reference that works on 3.14 can fail.
-      - run: uv run --isolated --python 3.12 pytest -q
       - run: uvx ruff check

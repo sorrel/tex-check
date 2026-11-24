@@ -4,7 +4,9 @@ Proofreads the prose in LaTeX files, in stages: **repeats** ("the the"),
 **near-repeats** (the same longer word again within a few words),
 **punctuation** (double spaces, stray/doubled marks, words run together,
 brackets), **spelling** (aspell, `en_GB-ise`), **grammar** (rule-based
-heuristics). Stdlib only; aspell is the one external tool (`brew install aspell`).
+heuristics). Python 3.14+, stdlib only; aspell is the one external tool
+(`brew install aspell`). 3.14 reads annotations lazily, so a class can name
+itself in a hint without quotes or `Self`.
 
 ## How it fits together
 
@@ -153,5 +155,5 @@ its absence would publish it.
     uv tool install --editable .     # once; gives `tex-check` on PATH
     tex-check document.tex --only repeats
     tex-check document.tex --web     # browser view
-    uv run pytest                    # tests (CI runs them on 3.12 too)
+    uv run pytest                    # tests
     uvx ruff check                   # lint, config in pyproject.toml
