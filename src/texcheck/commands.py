@@ -11,7 +11,7 @@ DROP_ARGS = {
     "label": 1, "ref": 1, "pageref": 1, "eqref": 1, "cite": 1, "citep": 1,
     "citet": 1, "nocite": 1, "includegraphics": 1, "input": 1, "include": 1,
     "usepackage": 1, "url": 1, "href": 1, "hyperref": 1, "index": 1,
-    "hyphenation": 1, "vspace": 1, "hspace": 1, "vskip": 0, "pagestyle": 1,
+    "hyphenation": 1, "vspace": 1, "vskip": 0, "pagestyle": 1,
     "thispagestyle": 1, "pagenumbering": 1, "chapterstyle": 1,
     "setsecheadstyle": 1, "setbeforesecskip": 1, "setaftersecskip": 1,
     "setheadfoot": 2, "setcounter": 2, "addtocounter": 2, "setlength": 2,
@@ -19,6 +19,15 @@ DROP_ARGS = {
     "fontsize": 2, "color": 1, "textcolor": 1, "colorbox": 1, "pagecolor": 1,
     "emoji": 1, "rule": 2, "raisebox": 1, "resizebox": 2, "scalebox": 1,
     "makebox": 0, "parbox": 1, "settowidth": 2, "def": 0,
+    # Contents entries repeat a heading already checked where it is set.
+    "addcontentsline": 3, "addtocontents": 2,
+}
+
+# Commands that put horizontal space between words, and how many brace
+# arguments (the amount) they take: `slip\hspace{9pt}between` is two words.
+SPACES = {
+    "hspace": 1, "hskip": 0, "quad": 0, "qquad": 0, "enspace": 0,
+    "enskip": 0, "thinspace": 0, "hfill": 0, "hfil": 0, "space": 0,
 }
 
 # Commands whose argument is set off from the running text, like a heading.
@@ -64,7 +73,7 @@ MACROS = {
 #: spot a missing backslash (`bsq{word}` read as "bsqword"); single letters
 #: such as \o would match the start of half the dictionary.
 KNOWN_COMMANDS = frozenset(
-    name for name in (*DROP_ARGS, *HEADINGS, *NOTES, *BREAKS, *BOLD, *QUOTES, *MACROS)
+    name for name in (*DROP_ARGS, *SPACES, *HEADINGS, *NOTES, *BREAKS, *BOLD, *QUOTES, *MACROS)
     if len(name) >= 3 and name.isalpha()
 )
 
