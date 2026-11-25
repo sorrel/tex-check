@@ -191,6 +191,8 @@ class LatexToProse:
             j = self.walk(j + 1, closing=True)
             if name in TITLES:
                 self.out.titles.append((start, len(self.out.chars)))
+            if name == "part":
+                self.out.parts.append((start, len(self.out.chars)))
             self.emit(BREAK, j - 1)
         return j
 

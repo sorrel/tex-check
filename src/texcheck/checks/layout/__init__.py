@@ -4,6 +4,10 @@ These depend on where TeX broke the lines, so they read the PDF
 (`document.pdf` beside `document.tex`; see pdfwords.py) and match each line
 back to the source, so every finding still opens at its line:column.
 
+* **Headings at the foot:** a section or chapter title with fewer than
+  three lines of text below it before the page turns.
+* **Part pages on the left:** a \\part's own page (grey, in house style)
+  on an even, left-hand page.
 * **Runts:** a paragraph whose last line is a single word.
 * **Lone "I"s at the edges:** a line that starts or ends with the word "I",
   too often in one paragraph or on one page.
@@ -22,7 +26,7 @@ counted, not shown.
 
 from ... import pdfwords
 from ...findings import Finding, Skipped
-from .find import Hit, find
+from .find import Hit, find, part_text
 from .match import align, pdf_tokens, title_words
 from .repair import unglue
 from .words import TOKEN, normal
@@ -49,13 +53,22 @@ def run(prose, settings) -> list[Finding]:
     pages = unglue(pages, set(tokens))
     pdf = pdf_tokens(pages)
     mapping = align([t for t, _ in pdf], tokens)
-    hits = find(pages, title_words(pdf, mapping, spans, prose.titles))
+    parts = [part_text(text[a:b]) for a, b in prose.parts]
+    hits = find(pages, title_words(pdf, mapping, spans, prose.titles), parts)
 
     first = _first_token(pdf, mapping)
-    findings = [_finding(hit, spans[at]) for hit in hits
-                if (at := first.get(id(hit.word))) is not None]
+    findings = [_finding(hit, span) for hit in hits if (span := _span(hit, first, spans, prose))]
     settings.stats[NAME] = {"unmatched": len(hits) - len(findings), "stale": settings.pdf_stale}
     return findings
+
+
+def _span(hit: Hit, first: dict[int, int], spans, prose) -> tuple[int, int] | None:
+    """Where in the prose a hit points: a part page at its \\part title (a
+    short title may match nothing word for word), the rest at their word."""
+    if hit.part is not None:
+        return prose.parts[hit.part]
+    at = first.get(id(hit.word))
+    return None if at is None else spans[at]
 
 
 def _first_token(pdf, mapping: dict[int, int]) -> dict[int, int]:
