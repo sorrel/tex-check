@@ -4,8 +4,9 @@ Proofreads the prose in LaTeX files, in stages: **repeats** ("the the"),
 **near-repeats** (the same longer word again within a few words),
 **punctuation** (double spaces, stray/doubled marks, words run together,
 brackets), **spelling** (aspell, `en_GB-ise`), **grammar** (rule-based
-heuristics). Python 3.14+, stdlib only; aspell is the one external tool
-(`brew install aspell`). 3.14 reads annotations lazily, so a class can name
+heuristics), **languagetool**, **layout** (the PDF). Python 3.14+, stdlib
+only; external tools: aspell (`brew install aspell`) and, optionally,
+LanguageTool (`brew install languagetool`, brings its own Java 17). 3.14 reads annotations lazily, so a class can name
 itself in a hint without quotes or `Self`.
 
 ## How it fits together
@@ -131,6 +132,29 @@ itself in a hint without quotes or `Self`.
   defeat a simple cursor. Margins are the mode of line edges, not min/max
   (a stray mark at x=0 on every page). No SyncTeX file is written here.
 
+## LanguageTool (added 25 November 2026)
+
+- `languagetool.py` starts Homebrew's `languagetool-server` on a free
+  127.0.0.1 port at the first check of a process and reuses it (so `--web`
+  re-checks without Java start-up); `atexit` stops it. It runs under a
+  `/bin/sh` watchdog reading a pipe from tex-check, so a killed tex-check
+  still stops Java (tested with a stand-in server). Requests bypass any
+  proxy. The public API is never used: never send the text off the machine.
+- `checks/languagetool.py`: 20,000-character requests cut at paragraph
+  breaks, four at a time; a 106,000-word book takes about 8 s in all.
+  Rules that duplicate other stages are off (spelling, "the the", double
+  spaces, names), and so is Oxford -ize, which contradicts the house -ise.
+  Matches wholly in bold (names, titles) are dropped.
+- Four groups by `kind_of(rule, category)`, all shown (the user's choice):
+  grammar and typos 69, British usage 27, hyphens/compounds/accents 68,
+  commas and style 626 on the test book. Unknown rules count as grammar.
+  `groups._KINDS` splits a stage into groups by `Finding.group`, for this
+  and layout alike.
+- `tests/conftest.py` makes `languagetool.server` unavailable outside
+  `test_languagetool.py`, which has one test against the real server.
+- Its part-of-speech tagging is the likely route to the tense check, still
+  on this machine.
+
 ## Publishing
 
 The repository is public. Nothing personal goes in it: no home paths,
@@ -141,10 +165,6 @@ its absence would publish it.
 
 ## Not done yet
 
-- A LanguageTool stage for real grammar checking. Local LanguageTool needs
-  Java 17+: `/usr/bin/java` is 11, but Homebrew's keg-only openjdk (27) is
-  installed at `/opt/homebrew/opt/openjdk/bin/java`, so it can run locally.
-  The public API would send the text off the machine: ask before that.
 - Layout thresholds (`checks/layout/find.py` constants) are the user's to set;
   "directly above" means centres within 10% of the word width (askew is
   fine, by request); still the largest group. Stacks (asked for 24 November
