@@ -8,9 +8,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import grammar, languagetool, layout, near_repeats, punctuation, repeats, spelling
+from . import grammar, languagetool, layout, near_repeats, punctuation, repeats, spelling, tense
 
-STAGES = [repeats, near_repeats, punctuation, spelling, grammar, languagetool, layout]
+STAGES = [repeats, near_repeats, punctuation, spelling, grammar, languagetool, tense, layout]
 BY_NAME = {stage.NAME: stage for stage in STAGES}
 ALIASES = {"repeat": "repeats", "near": "near-repeats", "punct": "punctuation", "spell": "spelling", "grammar": "grammar", "lt": "languagetool"}
 

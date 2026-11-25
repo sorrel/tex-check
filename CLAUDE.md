@@ -4,7 +4,7 @@ Proofreads the prose in LaTeX files, in stages: **repeats** ("the the"),
 **near-repeats** (the same longer word again within a few words),
 **punctuation** (double spaces, stray/doubled marks, words run together,
 brackets), **spelling** (aspell, `en_GB-ise`), **grammar** (rule-based
-heuristics), **languagetool**, **layout** (the PDF). Python 3.14+, stdlib
+heuristics), **languagetool**, **tense**, **layout** (the PDF). Python 3.14+, stdlib
 only; external tools: aspell (`brew install aspell`) and, optionally,
 LanguageTool (`brew install languagetool`, brings its own Java 17). 3.14 reads annotations lazily, so a class can name
 itself in a hint without quotes or `Self`.
@@ -152,8 +152,17 @@ itself in a hint without quotes or `Self`.
   and layout alike.
 - `tests/conftest.py` makes `languagetool.server` unavailable outside
   `test_languagetool.py`, which has one test against the real server.
-- Its part-of-speech tagging is the likely route to the tense check, still
-  on this machine.
+- Tense (`checks/tense.py`, 25 November 2026) uses `languagetool.tag`:
+  `languagetool -l en-GB -t` on stdin, a separate Java run (~10 s; the
+  server has no tagging request). Tagger lines are placed back in the prose
+  by searching forward from a cursor. Reported: a present sentence with a
+  past one either side in its paragraph; dialogue (“…”) and bold ignored.
+  Lessons from tuning on two books (50 → 17 and 11): count only a verb
+  phrase's first word (else "would turn … set … start" reads as present),
+  plus be/have/do anywhere (the chunker leaves "Was she…" outside a verb
+  phrase); would/could/might/'d count as past; skip words after "to",
+  capitalised words mid-sentence ("Rolls"), and words that can be IN/RP/UH
+  ("out", "down"). Remaining noise: tagger errors ("rain drops arrived").
 
 ## Publishing
 
@@ -177,9 +186,6 @@ its absence would publish it.
   are `openany`) on an even PDF page. Part pages are found by their text
   alone on a page, not by colour, and point at the `\part` itself. Both
   test books: none of either (nearest heading 5 lines up; all parts odd).
-- A tense check (an unintended slip from past to present in narration,
-  ignoring dialogue). Regexes cannot do it: it needs a tagger, LanguageTool
-  or a model, and the latter two may send text off the machine, so ask.
 
 ## Running
 
