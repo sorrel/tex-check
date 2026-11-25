@@ -149,6 +149,12 @@ its absence would publish it.
   2026): three lines of the same word with centres within 75% of a width
   (`STACK_SHIFT`, 26 on the test book); four or more at any overlap
   (`TALL_STACK_SHIFT`, own group, 4).
+- Headings at the foot and part pages (asked for 25 November 2026): a
+  title with fewer than `LINES_UNDER_TITLE` (3) lines below it when the
+  text goes on overleaf; a `\part`'s page (grey in house style; the books
+  are `openany`) on an even PDF page. Part pages are found by their text
+  alone on a page, not by colour, and point at the `\part` itself. Both
+  test books: none of either (nearest heading 5 lines up; all parts odd).
 - A tense check (an unintended slip from past to present in narration,
   ignoring dialogue). Regexes cannot do it: it needs a tagger, LanguageTool
   or a model, and the latter two may send text off the machine, so ask.

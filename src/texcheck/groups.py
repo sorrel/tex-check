@@ -43,6 +43,8 @@ MAC_ONLY = "only this Mac knows it"
 
 #: Layout's groups, in the order they are shown, keyed by the finding's kind.
 LAYOUT_GROUPS = [
+    ("part-left", "Part pages on the left", "a part's own page should be a right-hand one"),
+    ("title-foot", "Headings at the foot of a page", "fewer than three lines of text below before the page turns"),
     ("runt", "One-word last lines", "a paragraph ending in a single word"),
     ("lone-i", "Lone “I”s at line edges", "too many in a paragraph or on a page"),
     ("starts", "Same word starting lines", "two lines running"),

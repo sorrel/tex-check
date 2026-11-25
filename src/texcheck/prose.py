@@ -24,6 +24,8 @@ class Prose:
     bold: list[bool] = field(default_factory=list)
     #: Spans of section and chapter titles, for the layout checks.
     titles: list[tuple[int, int]] = field(default_factory=list)
+    #: Of those, the spans of \part titles (each part's own page).
+    parts: list[tuple[int, int]] = field(default_factory=list)
     #: `text`, joined once and kept until the next change.
     _text: str | None = field(default=None, init=False, repr=False, compare=False)
 
@@ -45,6 +47,7 @@ class Prose:
         """Append another Prose (a footnote), keeping its title spans."""
         shift = len(self.chars)
         self.titles += [(a + shift, b + shift) for a, b in other.titles]
+        self.parts += [(a + shift, b + shift) for a, b in other.parts]
         self.chars += other.chars
         self.offsets += other.offsets
         self.bold += other.bold

@@ -292,3 +292,78 @@ def test_a_stack_of_first_words_is_left_to_starts():
     ))
     assert not any("lines running, one above another" in h for h in found)
     assert "“and” starts two lines running" in found
+
+
+# ── headings at the foot of a page, part pages on the left ──
+
+def _with_heading(after: int, then: list[Word] | None = None):
+    """A page of text, a heading, `after` lines below it; then a next page."""
+    heading = line(588 - 12 * 5, "The Road", full=False)
+    first = page(*[line(600 - 12 * n, "the last words of the chapter before ran on and on")
+                   for n in range(5)], heading,
+                 *[line(564 - 12 * n, "the road ran on and the dog ran with it and on")
+                   for n in range(after)])
+    second = then if then is not None else page(line(600, "and we ran all the way home.", full=False))
+    return [first, second], {id(w) for w in heading}
+
+
+@pytest.mark.parametrize("after", [0, 1, 2])
+def test_a_heading_with_too_few_lines_below_it_before_the_page_turns(after):
+    pages, titles = _with_heading(after)
+    assert [(h.kind, h.page, h.message) for h in layout.find(pages, titles)
+            if h.kind == "title-foot"] == [
+        ("title-foot", 0, f"heading “The Road” at the foot of the page, {after} "
+                          f"line{'' if after == 1 else 's'} of text below it")]
+
+
+def test_a_heading_with_enough_lines_below_it_is_fine():
+    pages, titles = _with_heading(3)
+    assert [h for h in layout.find(pages, titles) if h.kind == "title-foot"] == []
+
+
+def test_a_heading_on_the_last_page_or_before_another_heading_is_fine():
+    """Nothing follows it overleaf, so the text below it is all there is."""
+    pages, titles = _with_heading(1, then=[])
+    assert [h for h in layout.find(pages, titles) if h.kind == "title-foot"] == []
+    nxt = line(600, "Next Chapter", full=False)
+    pages, titles = _with_heading(1, then=page(nxt))
+    assert [h for h in layout.find(pages, titles | {id(w) for w in nxt})
+            if h.kind == "title-foot"] == []
+
+
+def _part_book(part_at: int) -> list[list[Word]]:
+    text = page(line(600, "the road ran on and the dog ran with it and on"),
+                line(588, "home.", full=False))
+    pages = [text for _ in range(4)]
+    pages[part_at] = page(line(498, "The 1980s", full=False))
+    return pages
+
+
+def test_a_part_page_on_the_left_is_reported():
+    hits_ = [h for h in layout.find(_part_book(1), parts=["the 1980s"]) if h.kind == "part-left"]
+    assert [(h.page, h.part, h.message) for h in hits_] == [
+        (1, 0, "part page “The 1980s” is on a left-hand page (page 2)")]
+
+
+def test_a_part_page_on_the_right_is_fine():
+    assert [h for h in layout.find(_part_book(2), parts=["the 1980s"]) if h.kind == "part-left"] == []
+
+
+def test_prose_records_which_titles_are_parts():
+    prose = extract("\\begin{document}\n\\part{The 1980s}\n\\chapter{One}\nText.\n\\end{document}\n")
+    [(start, end)] = prose.parts
+    assert prose.text[start:end] == "The 1980s"
+    assert len(prose.titles) == 2
+
+
+def test_a_part_page_finding_points_at_the_part(tmp_path, monkeypatch):
+    src = ("\\begin{document}\nIntro text here.\n\\part{The 1980s}\n"
+           "\\chapter{One}\nThe road ran on.\n\\end{document}\n")
+    monkeypatch.setattr(layout.pdfwords, "read", lambda pdf, **kw: [
+        page(line(600, "Intro text here.", full=False)),
+        page(line(498, "The 1980s", full=False)),
+        page(line(600, "One", full=False), line(588, "The road ran on.", full=False))])
+    prose = extract(src)
+    [found] = layout.run(prose, Settings(pdf=tmp_path / "doc.pdf"))
+    assert found.group == "part-left"
+    assert prose.text[found.start:found.end] == "The 1980s"

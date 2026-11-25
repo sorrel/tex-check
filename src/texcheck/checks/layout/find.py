@@ -1,4 +1,5 @@
-"""The layout problems on typeset pages: runts, lone "I"s and stacks.
+"""The layout problems on typeset pages: headings at the foot of a page,
+part pages on the left, runts, lone "I"s and stacks.
 
 Each page is measured once (`_Page`), then each kind of problem has its
 own short pass over its lines.
@@ -30,17 +31,22 @@ STACK_LINES = 3
 TALL_STACK_LINES = 4
 #: How near the margin, in points, a word must be to count as at the edge.
 EDGE = 2.0
+#: A heading needs at least this many lines of text below it on its page
+#: when the text goes on overleaf; fewer, and it sits at the foot, cut off.
+#: On the two test books (25 November 2026) none had fewer than 5.
+LINES_UNDER_TITLE = 3
 #: A paragraph's last word ends with one of these; a heading's does not.
 _ENDS_PARAGRAPH = set(".!?:;)”’—…'\"")
 
 
 @dataclass
 class Hit:
-    kind: str         # runt, lone-i, starts, ends, tall-stack, stack, above (groups.LAYOUT_GROUPS)
+    kind: str         # title-foot, part-left, runt, lone-i, starts, ends, tall-stack, stack, above (groups.LAYOUT_GROUPS)
     page: int         # 0-based PDF page
     line: int         # 1-based body line on that page
     word: Word        # where to point
     message: str
+    part: int | None = None   # part-left: which part, as an index into `parts`
 
 
 @dataclass
@@ -56,25 +62,42 @@ class _Page:
     keys: list[list[str]]   # per line, each word's key (worked out once: it is a regex)
 
 
-def find(pages: list[list[Word]], titles: set[int] | frozenset = frozenset()) -> list[Hit]:
+def find(pages: list[list[Word]], titles: set[int] | frozenset = frozenset(),
+         parts: list[str] = ()) -> list[Hit]:
     """Every layout problem in the typeset pages, page by page (each page's
-    runts, then lone "I"s, then stacks of three, then pairs).
+    part page or heading at the foot, then runts, lone "I"s, stacks of
+    three, then pairs).
 
     `titles` holds the id() of words that belong to section and chapter
     titles. A line made mostly of them is a title: it is not checked or
     compared with its neighbours, and it ends the paragraph before it.
+    `parts` holds each \\part title, as `part_text` writes it, in order:
+    a page with nothing else on it is that part's page.
     """
+    measured = [_measure(number, lines, titles)
+                for number, words in enumerate(pages) if (lines := body(words))]
     hits: list[Hit] = []
     carried_full = False  # the last line of the page before ran full (for runts)
-    for number, words in enumerate(pages):
-        if not (lines := body(words)):
+    next_part = 0
+    for at, page in enumerate(measured):
+        overleaf = measured[at + 1] if at + 1 < len(measured) else None
+        text = part_text(" ".join(w.text for ln in page.lines for w in ln))
+        if text in parts[next_part:]:
+            next_part = parts.index(text, next_part) + 1
+            hits += _part_side(page, next_part - 1)
+            carried_full = False
             continue
-        page = _measure(number, lines, titles)
         stacks, stacked = _tall_stacks(page)
         pairs = [h for h in _stacks_on(page) if not (h.kind == "above" and id(h.word) in stacked)]
-        hits += _runts(page, carried_full) + _lone_is(page) + stacks + pairs
+        hits += (_title_at_foot(page, overleaf) + _runts(page, carried_full) + _lone_is(page)
+                 + stacks + pairs)
         carried_full = page.full[-1]
     return hits
+
+
+def part_text(text: str) -> str:
+    """A part title as compared with a page's text: spaces and case aside."""
+    return " ".join(text.split()).casefold()
 
 
 def _measure(number: int, lines: list[Line], titles: set[int] | frozenset) -> _Page:
@@ -94,6 +117,40 @@ def _margins(lines: list[Line]) -> tuple[float, float]:
         return Counter(round(v) for v in values).most_common(1)[0][0] if values else 0.0
     long = [ln for ln in lines if len(ln) >= 4] or lines
     return mode([ln[0].x0 for ln in long]) - 0.5, mode([ln[-1].x1 for ln in long]) + 0.5
+
+
+# ── headings at the foot, part pages on the left ──
+
+def _title_at_foot(page: _Page, overleaf: _Page | None) -> list[Hit]:
+    """A heading with fewer than LINES_UNDER_TITLE lines below it on its
+    page, when the text goes on overleaf (the next page does not open with
+    a heading of its own). A heading of several lines counts once."""
+    if overleaf is None or overleaf.title[0]:
+        return []
+    last = len(page.title)
+    while last and not page.title[last - 1]:
+        last -= 1
+    below = len(page.lines) - last
+    if not last or below >= LINES_UNDER_TITLE:
+        return []
+    first = last
+    while first and page.title[first - 1]:
+        first -= 1
+    heading = " ".join(w.text for ln in page.lines[first:last] for w in ln)
+    return [Hit("title-foot", page.number, first + 1, page.lines[first][0],
+                f"heading “{heading}” at the foot of the page, {below} "
+                f"line{'' if below == 1 else 's'} of text below it")]
+
+
+def _part_side(page: _Page, part: int) -> list[Hit]:
+    """A part's own page should be a right-hand one: odd, counting the
+    PDF's first page as 1 (a right-hand page in a printed book)."""
+    if page.number % 2 == 0:
+        return []
+    title = " ".join(w.text for ln in page.lines for w in ln)
+    return [Hit("part-left", page.number, 1, page.lines[0][0],
+                f"part page “{title}” is on a left-hand page (page {page.number + 1})",
+                part=part)]
 
 
 # ── runts ──
