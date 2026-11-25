@@ -23,9 +23,11 @@ itself in a hint without quotes or `Self`.
   New stage = new module + add it to `STAGES`.
 - `run.py`: `check_file`, the one run shared by the terminal, `--json` and
   the browser, so all three agree. Word lists are read afresh on each run.
-- `groups.py`: sorts findings into groups. Spelling is split into likely
-  typos, other, in quotations, foreign/bold, names, variants (shown in that
-  order); the rules are evaluated in a different order (see `classify`).
+- `groups.py`: sorts findings into groups. Spelling is split into wrong
+  LaTeX (a command missing its backslash: `bsq{word}`; its suggestion is
+  the command, and it cannot be added to a word list), likely typos, other,
+  in quotations, foreign/bold, names, variants (shown in that order); the
+  rules are evaluated in a different order (see `classify`).
 - `progress.py`: the one-line status on stderr (terminal only) for a step
   over a second. `check_file(progress=)` names each stage; stages name slow
   sub-steps through `settings.progress`; `pdfwords.read(say=)` only when

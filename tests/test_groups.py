@@ -34,10 +34,19 @@ def words_in(groups: dict, key: str) -> list[str]:
     return [item.word for item in groups[key].items] if key in groups else []
 
 
-def test_macro_slip_is_a_typo(groups_of):
+def test_macro_slip_is_wrong_latex_not_a_typo(groups_of):
     groups = groups_of(r"She was briefly bsq{entertainment} for Byron.")
-    assert words_in(groups, "typos") == ["bsqentertainment"]
-    assert "\\bsq" in groups["typos"].items[0].note
+    assert words_in(groups, "latex") == ["bsqentertainment"]
+    assert words_in(groups, "typos") == []
+    assert "\\bsq" in groups["latex"].items[0].note
+
+
+def test_macro_slip_suggests_the_command_not_a_word(groups_of):
+    """aspell's nearest word ("discontentment") is no help: the fix is the backslash.
+    Nor is adding "bsqentertainment" to a word list."""
+    [item] = groups_of(r"She was briefly bsq{entertainment} for Byron.")["latex"].items
+    assert item.suggestions == ["\\bsq{entertainment}"]
+    assert not item.addable
 
 
 def test_case_only_difference_is_a_variant(groups_of):

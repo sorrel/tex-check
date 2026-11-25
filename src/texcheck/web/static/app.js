@@ -15,7 +15,7 @@
 "use strict";
 
 const TOKEN = document.querySelector('meta[name="token"]').content;
-const SPELLING = ["typos", "other", "quotes", "bold", "names", "variants", "spelling"];
+const SPELLING = ["latex", "typos", "other", "quotes", "bold", "names", "variants", "spelling"];
 // Spelling's least likely mistakes, shown after every other group.
 const LAST = "elsewhere";
 const DONE = "__done__";
@@ -219,7 +219,7 @@ function drawItem(item, firstIndex) {
   item.uses.forEach((use, i) => uses.append(drawUse(use, firstIndex + i)));
 
   const li = el("li", { class: "item", "data-id": item.id }, head, uses);
-  if (item.word) {
+  if (item.word && item.addable) {
     li.append(el("div", { class: "item-actions" },
       button("Add for this book", () => addWord(item, "book"), "every use: add to this book's word list"),
       button("Add everywhere", () => addWord(item, "personal"), "every use: add to your personal word list"),
@@ -362,8 +362,8 @@ document.addEventListener("keydown", (event) => {
     k: () => { state.current = Math.max(state.current - 1, 0); },
     o: () => openUse(row.use),
     x: () => markOk(row.use),
-    b: () => row.item.word && addWord(row.item, "book"),
-    e: () => row.item.word && addWord(row.item, "personal"),
+    b: () => row.item.word && row.item.addable && addWord(row.item, "book"),
+    e: () => row.item.word && row.item.addable && addWord(row.item, "personal"),
   };
   const action = keys[event.key];
   if (!action) return;

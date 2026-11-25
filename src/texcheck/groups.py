@@ -23,6 +23,7 @@ from .run import Located, Run, context_of
 
 #: Spelling's groups, in the order they are shown.
 SPELLING_GROUPS = [
+    ("latex", "Wrong LaTeX?", "a command that lost its backslash, read as a word"),
     ("typos", "Likely typos", "words aspell can correct, not names"),
     ("other", "Other unknown words", "aspell has no suggestion"),
     ("quotes", "In quotations", "dialogue, dialect and quoted words"),
@@ -84,6 +85,9 @@ class Item:
     suggestions: list[str]
     uses: list[Located]
     reason: str = ""
+    #: False for a word no word list should take: a command whose backslash
+    #: was dropped ("bsqentertainment"), fixed in the source instead.
+    addable: bool = True
 
 
 @dataclass
@@ -202,7 +206,7 @@ def classify(word: str, uses: list[Located], spans: list[tuple[int, int]],
     """
     slip = _macro_slip(word, uses, source)
     if slip:
-        return "typos", f"missing \\ before \\{slip}?"
+        return "latex", f"missing \\ before \\{slip}?"
     if quoted is None:
         quoted = _quoted_spans(prose.text)
     if all(_inside(quoted, start, end) for start, end in spans):
@@ -240,8 +244,12 @@ def _spelling_groups(run: Run, findings: list) -> list[Group]:
         why = reason(word, suggestions, note)
         if key == LAST and why == "not in the dictionary":
             why = ""   # it is in one, just not aspell's
+        slip = _macro_slip(word, uses, run.source)
+        if slip:  # aspell's nearest words ("discontentment") are no help
+            suggestions = [f"\\{slip}{{{word[len(slip):]}}}"]
         groups[key].items.append(Item(
             f"spelling:{word}", "spelling", word, word, note, suggestions, uses, why,
+            addable=not slip,
         ))
     return [group for group in groups.values() if group.items]
 

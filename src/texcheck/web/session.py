@@ -166,7 +166,7 @@ class Session:
     def _item_payload(self, item: Item) -> dict:
         return {
             "id": self._item_ids[id(item)], "word": item.word, "message": item.message,
-            "note": item.note, "reason": item.reason,
+            "note": item.note, "reason": item.reason, "addable": item.addable,
             "suggestions": [_suggestion(item.word, s) for s in item.suggestions]
             if item.word else item.suggestions,
             "uses": [self._use_payload(use) for use in item.uses],
@@ -210,6 +210,8 @@ class Session:
                 raise StaleId(item_id)
             if not item.word:
                 raise ValueError("only misspelt words can go in a word list")
+            if not item.addable:
+                raise ValueError(f"“{item.word}” is a command missing its backslash, not a word")
             target = wordlists.book_file(self.path) if scope == "book" else wordlists.personal_file()
             added = wordlists.append_word(target, item.word)
             self._record(scope, item, item.uses[0], added=added)
