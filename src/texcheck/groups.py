@@ -17,6 +17,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from . import dictionaries
+from .checks.languagetool import KINDS as LANGUAGETOOL_GROUPS
 from .commands import KNOWN_COMMANDS
 from .prose import Prose, Source
 from .run import Located, Run, context_of
@@ -54,6 +55,9 @@ LAYOUT_GROUPS = [
     ("stack", "Word stacked three high", "the same word on three lines running, a little askew"),
     ("above", "Word above itself", "squarely on top of the same word"),
 ]
+
+#: Stages whose findings are split into groups by kind, and those groups.
+_KINDS = {"layout": LAYOUT_GROUPS, "languagetool": LANGUAGETOOL_GROUPS}
 
 #: Reasons that outweigh another dictionary's say-so: macOS accepts
 #: "Ziggys" and "practiced", but they are still worth a look.
@@ -309,8 +313,8 @@ def _groups_in_run_order(run: Run) -> list[Group]:
         if stage.NAME == "spelling" and outcome:
             out += _spelling_groups(run, outcome)
             continue
-        if stage.NAME == "layout" and outcome:
-            out += _layout_groups(run, stage, outcome)
+        if stage.NAME in _KINDS and outcome:
+            out += _kind_groups(run, stage, outcome)
             continue
         group = Group(stage.NAME, stage.TITLE, stage.BLURB)
         group.items = _items(run, stage.NAME, outcome)
@@ -326,12 +330,13 @@ def _items(run: Run, stage: str, findings: list) -> list[Item]:
     ]
 
 
-def _layout_groups(run: Run, stage, findings: list) -> list[Group]:
-    """Layout's findings split by kind, in LAYOUT_GROUPS order."""
+def _kind_groups(run: Run, stage, findings: list) -> list[Group]:
+    """A stage's findings split by kind (the finding's group), in the order
+    the stage's kinds are listed, under the stage's title."""
     out = []
-    for kind, title, blurb in LAYOUT_GROUPS:
+    for kind, title, blurb in _KINDS[stage.NAME]:
         mine = [f for f in findings if f.group == kind]
         if mine:
-            out.append(Group(f"layout-{kind}", title, blurb, _items(run, stage.NAME, mine),
+            out.append(Group(f"{stage.NAME}-{kind}", title, blurb, _items(run, stage.NAME, mine),
                              section=stage.TITLE))
     return out

@@ -213,6 +213,10 @@ function drawItem(item, firstIndex) {
   } else {
     head.append(el("span", { class: "message" }, item.message));
     if (item.note) head.append(el("span", { class: "note" }, item.note));
+    if (item.suggestions.length) {
+      head.append(el("span", { class: "fixes" }, "→ ", ...item.suggestions.flatMap((text, i) =>
+        [i ? ", " : "", el("span", { class: "suggestion" }, text)])));
+    }
   }
 
   const uses = el("ol", { class: "uses" });

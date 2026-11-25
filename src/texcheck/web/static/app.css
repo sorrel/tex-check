@@ -203,6 +203,8 @@ main { padding: 2rem 2.5rem 6rem; max-width: calc(var(--measure) + 5rem); }
 }
 .difference { margin-left: 0.5rem; color: var(--caveat); font-size: 0.85rem; }
 .note { color: var(--caveat); font-size: 0.9rem; }
+/* A finding's suggested fixes (LanguageTool's), on a line of their own. */
+.fixes { flex-basis: 100%; font-size: 0.95rem; color: var(--ink-soft); }
 
 .context {
   font-family: var(--serif);

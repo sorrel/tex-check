@@ -18,7 +18,13 @@ Repeated words  the same word twice in a row ───────────�
 | `punctuation` | double spaces, `,,` `..` `.,`, a space before a comma, words run together, unbalanced brackets |
 | `spelling` | unknown words (aspell, British English), with suggestions and a reason |
 | `grammar` | common slips: *a apple*, *could of*, *more then*, *its a*, lower-case *i* |
-| `layout` | line breaks in the typeset PDF (macOS): one-word last lines, lone *I*s at line edges, a word starting, ending or sitting squarely above itself on the next line, the same word on three lines running (four or more shown on their own) |
+| `languagetool` | grammar, usage and style from [LanguageTool](https://languagetool.org), run on your Mac (*I didn't understood*, a noun *license*, *twenty year-old*); grouped so likely mistakes come before comma advice |
+| `layout` | the typeset PDF (macOS): a heading with under three lines below it at the foot of a page, a part page on a left-hand page, one-word last lines, lone *I*s at line edges, a word starting, ending or sitting squarely above itself on the next line, the same word on three lines running (four or more shown on their own) |
+
+LanguageTool is optional (`brew install languagetool`; without it the stage
+says so and is skipped). tex-check starts it on 127.0.0.1 for the run and
+stops it after: your text never leaves the machine. A long book takes about
+ten seconds. `--skip lt` leaves it out.
 
 Layout needs `document.pdf` beside `document.tex`. Its first run reads every
 letter's position (about a minute for a long book); after that it is cached
@@ -26,10 +32,11 @@ until you typeset again.
 
 ## 📦 Install
 
-Needs Python 3.14+, [uv](https://docs.astral.sh/uv/) and aspell:
+Needs Python 3.14+, [uv](https://docs.astral.sh/uv/) and aspell
+(LanguageTool optional):
 
 ```
-brew install aspell
+brew install aspell languagetool
 uv tool install --editable .
 ```
 

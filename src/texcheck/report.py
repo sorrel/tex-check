@@ -6,7 +6,7 @@ file is shown relative to the current directory when it lies inside it,
 which keeps the column short; iTerm resolves it against the shell's
 directory, so the link still works.
 
-Spelling and layout are shown as a stage heading with groups under it
+Spelling, LanguageTool and layout are shown as a stage heading with groups under it
 (see groups.py); every other stage is one heading and its findings.
 """
 
@@ -151,8 +151,11 @@ class _Printer:
         print(f"{indent}{snippet(self.run.source, item.uses[0], self.style, self.width - len(indent))}")
 
     def _finding(self, item: Item) -> None:
-        note = f"  {self.style.yellow('(' + item.note + ')')}" if item.note else ""
-        print(f"  {self._where(item)}  {item.message}{note}")
+        s = self.style
+        note = f"  {s.yellow('(' + item.note + ')')}" if item.note else ""
+        fixes = (f"  {s.cyan('→')} " + s.dim(", ").join(s.green(x) for x in item.suggestions)
+                 if item.suggestions else "")
+        print(f"  {self._where(item)}  {item.message}{note}{fixes}")
         self._context(item)
 
     def _word(self, item: Item) -> None:
