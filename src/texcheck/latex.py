@@ -28,6 +28,7 @@ from .commands import (
     NOTES,
     QUOTES,
     SKIP_ENVS,
+    SPACES,
     TITLES,
 )
 from .prose import BREAK, Prose
@@ -158,6 +159,13 @@ class LatexToProse:
             j = self.skip_argument(j)
         return j
 
+    def _space(self, name: str, i: int, j: int) -> int:
+        """Horizontal space: its amount is dropped, the words stay apart."""
+        for _ in range(SPACES[name]):
+            j = self.skip_argument(j)
+        self.emit(" ", i)
+        return j
+
     def _quote(self, name: str, i: int, j: int) -> int:
         j = self.skip_ws(j)
         if self._opens(j):
@@ -195,8 +203,8 @@ class LatexToProse:
         return j
 
     # Checked in this order; a command in none of them simply vanishes.
-    _HANDLERS = ((NOTES, _note), (DROP_ARGS, _drop), (QUOTES, _quote), (BOLD, _bold),
-                 (HEADINGS, _heading), (BREAKS, _break), (MACROS, _macro))
+    _HANDLERS = ((NOTES, _note), (DROP_ARGS, _drop), (SPACES, _space), (QUOTES, _quote),
+                 (BOLD, _bold), (HEADINGS, _heading), (BREAKS, _break), (MACROS, _macro))
 
     def environment(self, name: str, i: int, j: int) -> int:
         """\\begin{env} or \\end{env}: a break; skipped environments vanish whole."""

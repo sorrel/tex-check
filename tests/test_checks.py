@@ -57,6 +57,18 @@ def test_dropped_arguments():
     assert prose.text.split() == ["A", "B", "C", "link"]
 
 
+def test_horizontal_space_separates_words():
+    prose = extract(body(r"fingers slip\hspace{39pt}between\hspace*{10pt}desire\quad end"))
+    assert prose.text.split() == ["fingers", "slip", "between", "desire", "end"]
+
+
+def test_contents_lines_are_not_prose():
+    prose = extract(body(
+        r"\addcontentsline{toc}{chapter}{\protect\numberline{}Poems for Children}"
+        r"\addtocontents{toc}{\protect\vspace{4pt}}Text."))
+    assert prose.text.strip() == "Text."
+
+
 # ── stages ─────────────────────────────────────────────────────────────────
 
 def test_repeats_across_markup_and_lines():
