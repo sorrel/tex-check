@@ -116,3 +116,26 @@ def check(text: str, language: str = "en-GB", disabled_rules: tuple[str, ...] = 
             return json.load(reply)["matches"]
     except (OSError, urllib.error.URLError, ValueError, KeyError) as err:
         raise Unavailable(f"LanguageTool did not answer: {err}") from err
+
+
+TAG_TIMEOUT = 300.0  # seconds; a 106,000-word book takes about 10
+
+
+def tag(text: str, language: str = "en-GB") -> str:
+    """LanguageTool's part-of-speech tagging of `text` (`languagetool -t`):
+    one `<S> word[lemma/TAG,...,chunk] ... </S>` line per sentence.
+
+    A separate Java run, not the server: the server has no tagging
+    request. It reads the text on stdin and writes nothing anywhere else.
+    """
+    launcher = shutil.which("languagetool")
+    if launcher is None:
+        raise Unavailable(f"LanguageTool is not installed ({INSTALL})")
+    try:
+        done = subprocess.run([launcher, "-l", language, "-t"], input=text, capture_output=True,
+                              text=True, timeout=TAG_TIMEOUT, check=False)
+    except (OSError, subprocess.SubprocessError) as err:
+        raise Unavailable(f"LanguageTool's tagger failed: {err}") from err
+    if done.returncode != 0:
+        raise Unavailable(f"LanguageTool's tagger failed: {done.stderr.strip()[-200:]}")
+    return done.stdout

@@ -21,10 +21,11 @@ def _no_second_opinions(request, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_languagetool(request, monkeypatch):
-    if request.node.module.__name__.endswith("test_languagetool"):
+    if request.node.module.__name__.endswith(("test_languagetool", "test_tense")):
         return
 
     def off():
         raise languagetool.Unavailable("off in tests")
 
     monkeypatch.setattr(languagetool, "server", off)
+    monkeypatch.setattr(languagetool, "tag", lambda text, language="en-GB": off())

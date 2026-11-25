@@ -19,12 +19,14 @@ Repeated words  the same word twice in a row ───────────�
 | `spelling` | unknown words (aspell, British English), with suggestions and a reason |
 | `grammar` | common slips: *a apple*, *could of*, *more then*, *its a*, lower-case *i* |
 | `languagetool` | grammar, usage and style from [LanguageTool](https://languagetool.org), run on your Mac (*I didn't understood*, a noun *license*, *twenty year-old*); grouped so likely mistakes come before comma advice |
+| `tense` | a present-tense sentence alone in past-tense narration (*We walked to the river. The water **is** cold. Then we went home.*), dialogue aside; uses LanguageTool's tagger |
 | `layout` | the typeset PDF (macOS): a heading with under three lines below it at the foot of a page, a part page on a left-hand page, one-word last lines, lone *I*s at line edges, a word starting, ending or sitting squarely above itself on the next line, the same word on three lines running (four or more shown on their own) |
 
 LanguageTool is optional (`brew install languagetool`; without it the stage
 says so and is skipped). tex-check starts it on 127.0.0.1 for the run and
 stops it after: your text never leaves the machine. A long book takes about
-ten seconds. `--skip lt` leaves it out.
+ten seconds, and the tense check about as long again. `--skip lt,tense`
+leaves them out.
 
 Layout needs `document.pdf` beside `document.tex`. Its first run reads every
 letter's position (about a minute for a long book); after that it is cached

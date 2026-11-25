@@ -99,7 +99,7 @@ def test_display_order(groups_of):
         # "other" is left with only words aspell cannot suggest anything for,
         # which it nearly always can; empty groups are not shown.
         "repeats", "near-repeats", "punctuation", "typos", "quotes", "bold", "names",
-        "variants", "grammar", "languagetool", "layout",
+        "variants", "grammar", "languagetool", "tense", "layout",
     ]
 
 
