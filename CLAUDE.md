@@ -107,8 +107,8 @@ itself in a hint without quotes or `Self`.
   anything ("secours" → "sec ours"). Likely typos are still mostly good
   words aspell lacks, and hyphenated fragments (*pre*-, *-seater*); the
   personal list absorbs the first.
-- Not yet confirmed: whether `--web`'s Open in Texifier inherits iTerm's
-  Accessibility permission (it should: the server is started from iTerm).
+- `--web`'s Open in Texifier inherits iTerm's Accessibility permission,
+  because the server is started from iTerm (confirmed 26 November 2026).
 
 - Near-repeats (`checks/near_repeats.py`) were tuned on a 106,000-word
   book: 40 words for every word gave 1,398 findings, nearly all subject
