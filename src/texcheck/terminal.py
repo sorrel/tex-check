@@ -5,6 +5,7 @@ ANSI escape takes no columns). With colour off every style is a no-op.
 """
 
 import os
+from itertools import pairwise
 from pathlib import Path
 
 from .prose import Source
@@ -57,9 +58,37 @@ def heading(title: str, blurb: str, count: str, style: Style, width: int, colour
     return f"{style.bold(title)}  {style.dim(blurb)} {style.dim(rule)} {colour(count)}"
 
 
-def snippet(source: Source, loc: Located, style: Style, width: int) -> str:
-    """The source line around a finding, with the finding highlighted."""
-    cut_left, before, hit, after, cut_right = snippet_parts(source, loc, width)
-    head = style.dim("…") if cut_left else ""
-    tail = style.dim("…") if cut_right else ""
-    return f"{head}{before}{style.red(hit)}{after}{tail}"
+def snippet(source: Source, loc: Located, style: Style, width: int, lines: int = 2) -> list[str]:
+    """The source line around a finding, the finding highlighted, wrapped
+    at spaces onto at most `lines` lines of `width` columns."""
+    cut_left, before, hit, after, cut_right = snippet_parts(source, loc, width * lines - 2)
+    head, tail = ("…" if cut_left else ""), ("…" if cut_right else "")
+    plain = head + before + hit + after + tail
+    hit_at = len(head + before)
+    hit_end = hit_at + len(hit)
+    out, start = [], 0
+    while start < len(plain):
+        end = len(plain) if len(plain) - start <= width else plain.rfind(" ", start + 1, start + width + 1)
+        if hit_at < end < hit_end and start < hit_at - 1 and plain[hit_at - 1] == " ":
+            end = hit_at - 1   # keep the finding whole on one line
+        if end <= start:
+            end = start + width
+        out.append(_styled(plain, start, end, hit_at, hit_end, len(head), len(plain) - len(tail), style))
+        start = end + (end < len(plain) and plain[end] == " ")
+    return out
+
+
+def _styled(plain: str, start: int, end: int, hit_at: int, hit_end: int,
+            body_at: int, tail_at: int, style: Style) -> str:
+    """plain[start:end] with the ellipses dim and the finding red: cut by
+    position in the plain text, so a wrap may fall anywhere."""
+    marks = sorted({start, end, *(m for m in (body_at, hit_at, hit_end, tail_at) if start < m < end)})
+    parts = []
+    for a, b in pairwise(marks):
+        piece = plain[a:b]
+        if a < body_at or a >= tail_at:
+            piece = style.dim(piece)
+        elif hit_at <= a < hit_end:
+            piece = style.red(piece)
+        parts.append(piece)
+    return "".join(parts)

@@ -148,7 +148,8 @@ class _Printer:
 
     def _context(self, item: Item) -> None:
         indent = self.columns.indent
-        print(f"{indent}{snippet(self.run.source, item.uses[0], self.style, self.width - len(indent))}")
+        for line in snippet(self.run.source, item.uses[0], self.style, self.width - len(indent)):
+            print(f"{indent}{line}")
 
     def _finding(self, item: Item) -> None:
         s = self.style
