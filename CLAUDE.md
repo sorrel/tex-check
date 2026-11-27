@@ -85,6 +85,11 @@ itself in a hint without quotes or `Self`.
   letters ("Her's" must not pass as the town of Her). `--no-places` turns
   it off. Add countries a text needs (e.g. FI for Finnish places).
 - Locations print as `file:line:col` so iTerm can Cmd-click them.
+- Extracts (26 November 2026, asked for longer): up to `run.CONTEXT` (70)
+  characters either side, cut back to whole words; the terminal wraps them
+  onto two lines, the browser shows them whole. OK marks still match on the
+  old window (`MATCH_CONTEXT`, 38, no word cut): changing that would orphan
+  every mark already in a book's done log.
 - `tex-check-open FILE:LINE:COL` (`opener.py`) opens Texifier at a finding.
   Texifier 1.9.33 cannot be told a line: URL schemes only open files,
   AppleScript is the standard suite, File › Jump to (⇧⌘O) is Tag Search,

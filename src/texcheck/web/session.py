@@ -22,7 +22,6 @@ from ..differences import describe, marked
 from ..groups import Group, Item, group_findings
 from ..opener import open_at
 from ..run import (
-    CONTEXT_WIDTH,
     Located,
     Options,
     Run,
@@ -33,6 +32,7 @@ from ..run import (
 from .watcher import Debouncer, Watcher
 
 SCOPES = ("book", "personal")
+WRAPS = 1_000   # a width no extract reaches
 
 
 class StaleId(LookupError):
@@ -173,9 +173,8 @@ class Session:
         }
 
     def _use_payload(self, use: Located) -> dict:
-        cut_left, before, hit, after, cut_right = snippet_parts(
-            self._run.source, use, CONTEXT_WIDTH
-        )
+        # The browser wraps, so the reach alone limits it, not a width.
+        cut_left, before, hit, after, cut_right = snippet_parts(self._run.source, use, WRAPS)
         return {
             "id": self._use_ids[id(use)], "line": use.line, "col": use.col,
             "before": before, "hit": hit, "after": after,

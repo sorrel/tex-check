@@ -43,14 +43,19 @@ class Located:
         return f"{path}:{self.line}:{self.col}"
 
 
-#: Characters of context either side of a finding.
-CONTEXT = 38
-#: The width context is cut to when it is used to recognise a place (OK marks).
+#: Characters of context shown either side of a finding, cut back to a
+#: whole word.
+CONTEXT = 70
+#: What an OK mark is matched on: 38 characters either side, cut to fit
+#: 110 columns. Fixed, so marks already in a book's done log still match.
+MATCH_CONTEXT = 38
 CONTEXT_WIDTH = 110
 
 
-def snippet_parts(source: Source, loc: Located, width: int) -> tuple[bool, str, str, str, bool]:
-    """The source line around a finding, as plain text.
+def snippet_parts(source: Source, loc: Located, width: int, reach: int = CONTEXT,
+                  whole_words: bool = True) -> tuple[bool, str, str, str, bool]:
+    """The source line around a finding, as plain text: up to `reach`
+    characters either side, fewer if `width` is short.
 
     Returns (cut on the left, before, hit, after, cut on the right). The
     browser view uses the parts as they are; `snippet` styles them.
@@ -59,7 +64,12 @@ def snippet_parts(source: Source, loc: Located, width: int) -> tuple[bool, str, 
     left = loc.col - 1
     right = min(len(line), left + max(1, loc.end - loc.start))
     room = max(20, (width - (right - left)) // 2)
-    lo, hi = max(0, left - min(CONTEXT, room)), min(len(line), right + min(CONTEXT, room))
+    lo, hi = max(0, left - min(reach, room)), min(len(line), right + min(reach, room))
+    if whole_words:   # no half-words at the cut edges
+        if lo > 0 and not line[lo - 1].isspace() and (space := line.find(" ", lo, left)) >= 0:
+            lo = space + 1
+        if hi < len(line) and not line[hi].isspace() and (space := line.rfind(" ", right, hi)) >= 0:
+            hi = space
     before, hit, after = line[lo:left], line[left:right], line[right:hi]
     if not hit.strip():  # make whitespace visible
         hit = hit.replace(" ", "␣").replace("\t", "⇥")
@@ -71,7 +81,8 @@ def context_of(source: Source, loc: Located) -> str:
     """The context around a finding, with the finding bracketed: what an
     OK mark is matched on. The brackets tell apart two uses of a word on
     one short line, whose windows would otherwise be the same text."""
-    _, before, hit, after, _ = snippet_parts(source, loc, CONTEXT_WIDTH)
+    _, before, hit, after, _ = snippet_parts(source, loc, CONTEXT_WIDTH, MATCH_CONTEXT,
+                                             whole_words=False)
     return f"{before}[[{hit}]]{after}"
 
 

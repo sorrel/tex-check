@@ -132,3 +132,45 @@ def test_layout_notes(capsys):
     print_layout_note({"stale": True, "unmatched": 3}, Style(colour=False))
     out = capsys.readouterr().out
     assert "older than the .tex" in out and "3 not matched" in out
+
+
+# ── the extract around a finding ──
+
+LONG = ("We had walked for most of the morning along the old towpath beside the canal, "
+        "and by the time we reached the lock the the sun was high and the water had turned "
+        "a dull green under the bridge where the boats were moored.")
+
+
+def _at(text: str, word: str):
+    from types import SimpleNamespace
+
+    from texcheck.prose import Source
+    at = text.index(word)
+    return Source(text), SimpleNamespace(start=at, end=at + len(word), line=1, col=at + 1)
+
+
+def test_the_extract_reaches_further_and_cuts_at_whole_words():
+    from texcheck.run import CONTEXT, snippet_parts
+    source, loc = _at(LONG, "the the")
+    cut_left, before, hit, after, cut_right = snippet_parts(source, loc, 1_000)
+    assert hit == "the the" and cut_left and cut_right
+    assert 50 < len(before) <= CONTEXT and 50 < len(after) <= CONTEXT
+    assert before.startswith("the old") and after.endswith("bridge")   # no half-words
+
+
+def test_ok_marks_still_match_on_the_old_window():
+    """Done logs already hold contexts of 38 characters either side."""
+    from texcheck.run import context_of
+    source, loc = _at(LONG, "the the")
+    at = LONG.index("the the")
+    assert context_of(source, loc) == f"{LONG[at - 38:at]}[[the the]]{LONG[at + 7:at + 45]}"
+
+
+def test_the_terminal_extract_wraps_onto_two_lines():
+    from texcheck.terminal import snippet
+    source, loc = _at(LONG, "the the")
+    lines = snippet(source, loc, Style(colour=False), 60)
+    assert len(lines) == 2 and all(len(line) <= 60 for line in lines)
+    assert "the the" in " ".join(lines)
+    coloured = "".join(snippet(source, loc, Style(colour=True), 60))
+    assert "\033[1;91mthe the\033[0m" in coloured
