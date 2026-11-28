@@ -192,3 +192,34 @@ def test_spelling_accepts_places_and_counts_them():
     found = spelling.run(extract(body("From Llanberis I recieve post. llanberis")), settings)
     assert {f.group for f in found} == {"recieve", "llanberis"}
     assert settings.stats["spelling"]["places"] == 1
+
+
+# ── hyphenated words ───────────────────────────────────────────────────────
+
+
+def test_compounds_are_found_whole():
+    text = "an absent-mindedly resigned, well-to-do man; mindedly"
+    whole = [spelling.compound(text, text.index(part), text.index(part) + len(part))
+             for part in ("mindedly", "to", "man")]
+    assert whole == ["absent-mindedly", "well-to-do", None]
+
+
+@needs_aspell
+def test_a_fragment_passes_when_the_whole_word_is_known(monkeypatch):
+    from texcheck import dictionaries
+    monkeypatch.setattr(dictionaries, "load", lambda path=None: {"absentmindedly"})
+    tex = r"\textbf{absent-mindedly resigned}, she said absent-mindedly; but mindedly alone."
+    found = spelling.run(extract(body(tex)), Settings())
+    assert [f.message for f in found] == ["mindedly"]
+    assert found[0].start > extract(body(tex)).text.index("but")
+
+
+@needs_aspell
+def test_macos_and_word_lists_vouch_for_compounds(monkeypatch, tmp_path):
+    from texcheck import dictionaries
+    monkeypatch.setattr(dictionaries, "ask_macos",
+                        lambda words, **kw: {w for w in words if w == "sixty-seater"})
+    words = tmp_path / "w.txt"
+    words.write_text("zorb-blaxing\n")
+    tex = "a sixty-seater coach, zorb-blaxing all the way"
+    assert messages(spelling, tex, wordlists=[words]) == []

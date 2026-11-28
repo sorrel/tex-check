@@ -12,7 +12,11 @@ Left alone by default, to keep the list to likely mistakes:
 * any word in a word list (see wordlists.py): the book's own, the personal
   list and any --words files;
 * capitalised words that aspell does not know but the place-name gazetteer
-  does (see places.py; built with `tex-check --update-places`).
+  does (see places.py; built with `tex-check --update-places`);
+* a part of a hyphenated word whose whole is known ("mindedly" in
+  "absent-mindedly"): aspell checks the parts one by one, so the whole is put
+  to the word lists, the larger British list (written solid, as it has no
+  hyphens) and macOS. The same part on its own is still checked.
 
 Words aspell rejects are also put to two larger dictionaries (see
 dictionaries.py). They are still findings; the note of which dictionary
@@ -51,10 +55,37 @@ ALWAYS_ACCEPT = {
 }
 
 
+#: A word and the hyphenated words joined to it: "well-to-do".
+COMPOUND = re.compile(rf"{WORD.pattern}(?:[-‐]{WORD.pattern})+")
+
+
 class SpellerMissing(Skipped):
     pass
 
 
+def compound(text: str, start: int, end: int) -> str | None:
+    """The hyphenated word that text[start:end] is part of, or None."""
+    left = max(0, text.rfind(" ", 0, start) + 1, text.rfind("\n", 0, start) + 1)
+    for m in COMPOUND.finditer(text, left):
+        if m.start() > start:
+            break
+        if m.start() <= start and end <= m.end():
+            return m.group()
+    return None
+
+
+def known_compounds(compounds: set[str], accepted: set[str], settings) -> set[str]:
+    """The hyphenated words a word list, the larger British list or macOS knows."""
+    def solid(word):
+        return normalise(word).lower().replace("-", "").replace("‐", "")
+    known = {w for w in compounds if normalise(w).lower() in accepted or solid(w) in accepted}
+    british = dictionaries.load() if settings.british else None
+    if british is not None:
+        known |= {w for w in compounds if solid(w) in british}
+    rest = sorted(compounds - known)
+    if settings.macos and rest:
+        known |= dictionaries.ask_macos(rest)
+    return known
 
 
 def candidates(prose, settings):
@@ -115,6 +146,16 @@ def run(prose, settings) -> list[Finding]:
     distinct = sorted({word for _, word in occurrences})
     settings.progress(f"Spelling: asking aspell about {len(distinct):,} words")
     unknown = ask_aspell(distinct, settings.dictionary) if distinct else {}
+
+    # A part of a known hyphenated word is not a finding there, wherever else it is.
+    text = prose.text
+    wholes = {
+        m.start(): whole for m, word in occurrences
+        if word in unknown and (whole := compound(text, m.start(), m.end()))
+    }
+    known = known_compounds(set(wholes.values()), accepted, settings) if wholes else set()
+    occurrences = [(m, word) for m, word in occurrences if wholes.get(m.start()) not in known]
+    unknown = {word: unknown[word] for _, word in occurrences if word in unknown}
 
     # Only words aspell does not know are looked up, so a place never hides a real word.
     places = {w for w in unknown if settings.places and is_place(w, settings.places)}
