@@ -156,8 +156,10 @@ class _Printer:
         note = f"  {s.yellow('(' + item.note + ')')}" if item.note else ""
         fixes = (f"  {s.cyan('→')} " + s.dim(", ").join(s.green(x) for x in item.suggestions)
                  if item.suggestions else "")
-        print(f"  {self._where(item)}  {item.message}{note}{fixes}")
+        count = f"  {s.dim(f'×{len(item.uses)}')}" if len(item.uses) > 1 else ""
+        print(f"  {self._where(item)}  {item.message}{count}{note}{fixes}")
         self._context(item)
+        self._other_lines(item)
 
     def _word(self, item: Item) -> None:
         """A misspelt word: reason, suggestions, context, its other lines."""
@@ -166,10 +168,14 @@ class _Printer:
         print(f"  {self._where(item)}  {s.red(item.word.ljust(c.word))} {s.dim(count.ljust(4))} "
               f"{s.yellow(item.reason.ljust(c.reason))}  {s.cyan('→')} {_suggestions(item, s)}")
         self._context(item)
+        self._other_lines(item)
+
+    def _other_lines(self, item: Item) -> None:
+        """"also on lines 12, 40" for an item found in more than one place."""
         if others := sorted({use.line for use in item.uses[1:]} - {item.uses[0].line}):
             shown = ", ".join(map(str, others[:8])) + (f" +{len(others) - 8}" if len(others) > 8 else "")
             label = "also on line" + ("s " if len(others) > 1 else " ")
-            print(f"{c.indent}{s.dim(label + shown)}")
+            print(f"{self.columns.indent}{self.style.dim(label + shown)}")
 
 
 def spelling_count(groups: list[Group]) -> tuple[str, int]:

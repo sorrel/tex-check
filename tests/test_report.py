@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from texcheck import wordlists
-from texcheck.checks import STAGES
+from texcheck.checks import STAGES, repeats
 from texcheck.groups import group_findings
 from texcheck.report import Style, as_json, display_path, print_report
 from texcheck.run import Options, check_file
@@ -174,3 +174,14 @@ def test_the_terminal_extract_wraps_onto_two_lines():
     assert "the the" in " ".join(lines)
     coloured = "".join(snippet(source, loc, Style(colour=True), 60))
     assert "\033[1;91mthe the\033[0m" in coloured
+
+
+def test_a_repeat_found_twice_is_shown_once_with_its_other_line(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(wordlists, "personal_file", lambda: tmp_path / "personal.txt")
+    tex = tmp_path / "doc.tex"
+    tex.write_text("\\begin{document}\ncold cold\\\\\nwarm\\\\\ncold cold\n\\end{document}\n")
+    run = check_file(tex, [repeats], Options(), gazetteer=None)
+    print_report(run, group_findings(run), Style(colour=False), cwd=tmp_path)
+    out = capsys.readouterr().out
+    assert out.count("“cold cold”") == 1
+    assert "×2" in out and "also on line 4" in out

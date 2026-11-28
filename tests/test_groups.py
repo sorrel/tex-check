@@ -225,3 +225,10 @@ def test_a_word_in_the_british_list_gets_no_note(groups_of, monkeypatch):
     monkeypatch.setattr(dictionaries, "ask_macos", lambda words, **kw: {"laundrette"})
     [item] = groups_of("We went to the laundrette.")["elsewhere"].items
     assert item.note == "" and item.reason == ""
+
+
+def test_the_same_repeat_is_one_item_with_every_place(groups_of):
+    groups = groups_of("cold cold\\\\\nwarm\\\\\nCold cold\\\\\nthe the end")
+    items = groups["repeats"].items
+    assert [item.message for item in items] == ["“cold cold”", "“the the”"]
+    assert [len(item.uses) for item in items] == [2, 1]

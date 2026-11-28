@@ -3,6 +3,8 @@
 Only whitespace may separate the two words, so "no, no" and "baby / baby"
 across a lyric line break are left alone. The check runs across LaTeX markup
 ("the \\textbf{the}") and across source line breaks within a paragraph.
+Each finding's group is the word, so a refrain sung six times ("cold cold")
+is one item with six places, not six items.
 """
 
 import re
@@ -45,6 +47,7 @@ def run(prose, settings) -> list[Finding]:
                         base + match.end(),
                         f"“{previous.group()} {match.group()}”",
                         note="can be correct" if word in OFTEN_FINE else "",
+                        group=word,
                     )
                 )
             previous = match
