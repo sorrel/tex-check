@@ -228,3 +228,43 @@ def test_macos_and_word_lists_vouch_for_compounds(monkeypatch, tmp_path):
     words.write_text("zorb-blaxing\n")
     tex = "a sixty-seater coach, zorb-blaxing all the way"
     assert messages(spelling, tex, wordlists=[words]) == []
+
+
+# ── brackets across lines of verse ─────────────────────────────────────────
+
+
+def test_a_bracket_may_close_lines_later_in_verse():
+    verse = ("\\hspace{1em}(when I was very small\\\\\nI was often scared\\\\\n"
+             "and the night was long\\\\\n\\hspace{1em}so the dark was bigger)\\\\\n")
+    assert messages(punctuation, verse) == []
+
+
+def test_but_not_across_prose():
+    prose = ("(This opens in a short line.\n\n" + "This paragraph of prose is long enough, "
+             "at well over twelve words, to count as prose and not verse.\n\nIt closes) here.")
+    assert messages(punctuation, prose) == ["unclosed “(”", "unmatched “)”"]
+
+
+def test_unpaired_brackets_in_verse_are_still_found():
+    assert messages(punctuation, "a line (opens\\\\\nand never\\\\\ncloses\\\\\n") == ["unclosed “(”"]
+
+
+def test_nor_from_a_line_of_prose():
+    tex = ("(This long opening paragraph of prose runs on to well over twelve words in all.\n\n"
+           "a short line)\\\\\n")
+    assert messages(punctuation, tex) == ["unclosed “(”", "unmatched “)”"]
+
+
+# ── \noindent and a lower-case start: the paragraph before goes on ──────────
+
+
+def test_noindent_lower_case_continues_the_paragraph():
+    tex = "We played the pubs,\n\n\\noindent \\hspace{5pt}especially at the Castle.\n\n\\noindent Then"
+    text = extract(body(tex)).text
+    assert [" ".join(p.split()) for p in text.split("\n\n") if p.strip()] == [
+        "We played the pubs, especially at the Castle.", "Then"]
+
+
+def test_noindent_never_joins_a_heading_to_its_text():
+    text = extract(body("\\section{Early days}\n\\noindent the band began")).text
+    assert [p.strip() for p in text.split("\n\n") if p.strip()] == ["Early days", "the band began"]

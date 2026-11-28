@@ -68,6 +68,11 @@ itself in a hint without quotes or `Self`.
 
 - `\\`, headings, environments and `\item` become paragraph breaks, so lyric
   lines (`\begin{words}{a\\b}`) are never joined or treated as one sentence.
+- Verse (28 November 2026): recognised by line length (under 12 words), not
+  by a mode. A bracket opened on one line of verse may close lines later;
+  prose between the two keeps both findings (`punctuation.across_verse`).
+- `\noindent` before a lower-case word joins its paragraph to the one
+  before (text resumed after a picture or quotation), never to a heading.
 - Footnotes are moved to the end of the prose and checked as their own
   paragraphs, so the sentence they interrupt reads whole.
 - House style bolds names (`\textbf{The The}`): bold capitalised words are

@@ -7,12 +7,22 @@ spaced brackets.
 Double spaces are only reported where they really sit side by side in the
 source, not where removing a command happened to leave two spaces. TeX
 collapses them in the PDF anyway, so they are tidiness, not errors in print.
+
+Brackets are matched within a paragraph, and `\\\\` ends a paragraph, so in
+verse a bracket opened on one line and closed lines later would be two
+findings. An unclosed bracket and a later unmatched one of its kind are
+paired if every line from one to the other is a line of verse (fewer than
+VERSE_LINE words); prose between them keeps both findings.
 """
 
 import re
 
 from ..findings import Finding
 from ..prose import paragraphs
+
+#: A paragraph with fewer words than this is a line of verse (as in near_repeats).
+VERSE_LINE = 12
+_WORD = re.compile(r"[^\W\d_]+")
 
 NAME = "punctuation"
 TITLE = "Spacing and punctuation"
@@ -48,7 +58,11 @@ FULL_STOP_COMMA = re.compile(r"([^\W\d_]+)\.[,;]")
 
 def run(prose, settings) -> list[Finding]:
     found = []
+    brackets = []
+    prose_spans = []  # each paragraph of prose (not verse)
     for base, para in paragraphs(prose.text):
+        if len(_WORD.findall(para)) >= VERSE_LINE:
+            prose_spans.append((base, base + len(para)))
         found += [Finding(NAME, base + m.start(), base + m.end(), "double space")
                   for m in DOUBLE_SPACE.finditer(para)
                   if prose.is_contiguous(base + m.start(), base + m.end())]
@@ -64,8 +78,28 @@ def run(prose, settings) -> list[Finding]:
             if word.lower() not in ABBREVIATIONS and len(word) > 1 and not dotted:
                 found.append(Finding(NAME, base + m.end(1), base + m.end(), "full stop and comma"))
 
-        found += unbalanced_brackets(para, base)
-    return found
+        brackets += unbalanced_brackets(para, base)
+    return found + across_verse(brackets, prose.text, prose_spans)
+
+
+def across_verse(brackets: list[Finding], text: str,
+                 prose_spans: list[tuple[int, int]]) -> list[Finding]:
+    """The bracket findings left once those closed in later lines of verse are paired."""
+    pairs = {")": "(", "]": "["}
+    paired: set[int] = set()
+    stack: list[Finding] = []   # unclosed brackets, waiting
+    for finding in brackets:
+        ch = text[finding.start]
+        if ch in pairs.values():
+            stack.append(finding)
+            continue
+        if stack and text[stack[-1].start] == pairs[ch] and not any(
+            start <= finding.start and stack[-1].start < end for start, end in prose_spans
+        ):
+            paired |= {id(stack.pop()), id(finding)}
+        else:
+            stack.clear()   # an unmatched closer: nothing before it can pair past it
+    return [f for f in brackets if id(f) not in paired]
 
 
 def unbalanced_brackets(para: str, base: int) -> list[Finding]:
