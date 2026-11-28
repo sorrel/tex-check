@@ -56,3 +56,16 @@ def test_a_word_common_in_the_text_is_flagged_only_when_very_close():
     spaced = ("The school bell rang. " + FILLER) * 7  # 7 uses, 14 words apart
     assert found(spaced) == []
     assert found(spaced + "the school, the school") == ["“school” again, 2 words after the last"]
+
+
+def test_the_same_phrase_has_the_same_group():
+    """A refrain that comes round three times is one item, not three."""
+    line = "Her lovely smile, a lovely day\\\\\nhey\\\\\n"
+    prose = extract("\\begin{document}\n" + line * 3 + "\\end{document}\n")
+    groups = [f.group for f in near_repeats.run(prose, Settings())]
+    assert groups == ["lovely smile, a lovely"] * 3
+
+
+def test_x_and_x_is_a_figure_not_a_slip():
+    assert found("I spin you round and round, faster and faster, again and again") == []
+    assert found("a lovely smile and a lovely day") == ["“lovely” again, 4 words after the last"]

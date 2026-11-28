@@ -323,8 +323,9 @@ def _groups_in_run_order(run: Run) -> list[Group]:
 
 
 #: Stages whose findings with the same group are one item with several
-#: places: the same repeat ("cold cold" in a refrain) is one thing to look at.
-_SAME_GROUP_ONE_ITEM = {"repeats"}
+#: places: the same repeat ("cold cold" in a refrain) or near repeat ("round
+#: and round") is one thing to look at.
+_SAME_GROUP_ONE_ITEM = {"repeats", "near-repeats"}
 
 
 def _items(run: Run, stage: str, findings: list) -> list[Item]:
