@@ -14,13 +14,20 @@ bold are dropped: house style bolds names and titles.
 Tuned on a 106,000-word book (25 November 2026): 893 matches, about 60
 grammar and typos, 30 British usage, 70 hyphens and accents, the rest
 commas and style (281 of them "comma before and").
+
+In verse (lines under prose.VERSE_LINE words) a poet's choices are left
+alone: style suggestions (VERSE_FREE categories: "summertime" → "summer"),
+comma suggestions, lower-case line starts, and brackets or quotes "unpaired"
+because they close lines later (the punctuation stage pairs those). Mistakes
+stay: grammar, typos, doubled marks (",,"), spacing.
 """
 
+from bisect import bisect_right
 from concurrent.futures import ThreadPoolExecutor
 
 from .. import languagetool
 from ..findings import Finding, Skipped
-from ..prose import BREAK
+from ..prose import BREAK, verse_spans
 
 NAME = "languagetool"
 TITLE = "LanguageTool"
@@ -53,6 +60,19 @@ _STYLE_CATEGORIES = {"PUNCTUATION", "REPETITIONS_STYLE", "STYLE", "REDUNDANCY",
                      "PLAIN_ENGLISH", "WIKIPEDIA", "CREATIVE_WRITING", "TEXT_ANALYSIS"}
 
 
+#: Suggestions, not mistakes: dropped in verse.
+VERSE_FREE = {"STYLE", "REDUNDANCY", "PLAIN_ENGLISH", "WIKIPEDIA", "CREATIVE_WRITING",
+              "TEXT_ANALYSIS", "REPETITIONS_STYLE"}
+
+
+def free_in_verse(rule: str, category: str) -> bool:
+    """Whether a rule's match is a poet's choice when it falls in verse."""
+    return (category in VERSE_FREE
+            or rule == "UPPERCASE_SENTENCE_START"
+            or "UNPAIRED" in rule
+            or (category == "PUNCTUATION" and "COMMA" in rule))
+
+
 def kind_of(rule: str, category: str) -> str:
     """Which group a rule's matches go in. Unknown rules count as grammar:
     better seen first than lost among the commas."""
@@ -78,6 +98,7 @@ def run(prose, settings) -> list[Finding]:
     except languagetool.Unavailable as err:
         raise Skipped(str(err)) from err
     found = []
+    verse = verse_spans(text)
     for (base, _), matches in zip(chunks, answers, strict=True):
         for m in matches:
             start = base + m["offset"]
@@ -85,12 +106,19 @@ def run(prose, settings) -> list[Finding]:
             if end <= start or all(prose.bold[start:end]):
                 continue
             rule = m["rule"]
+            if free_in_verse(rule["id"], rule["category"]["id"]) and _within(verse, start):
+                continue
             found.append(Finding(
                 NAME, start, end, m["message"],
                 suggestions=[r["value"] for r in m["replacements"][:3]],
                 group=kind_of(rule["id"], rule["category"]["id"]),
             ))
     return found
+
+
+def _within(spans: list[tuple[int, int]], at: int) -> bool:
+    k = bisect_right(spans, (at, float("inf"))) - 1
+    return k >= 0 and spans[k][0] <= at < spans[k][1]
 
 
 def _check(text: str) -> list[dict]:

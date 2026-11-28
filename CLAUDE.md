@@ -71,6 +71,9 @@ itself in a hint without quotes or `Self`.
 - Verse (28 November 2026): recognised by line length (under 12 words), not
   by a mode. A bracket opened on one line of verse may close lines later;
   prose between the two keeps both findings (`punctuation.across_verse`).
+  `prose.is_verse` is the one test. In verse LanguageTool drops style
+  suggestions, comma suggestions, lower-case line starts and unpaired
+  brackets/quotes (`free_in_verse`); grammar, typos and ",," stay.
 - `\noindent` before a lower-case word joins its paragraph to the one
   before (text resumed after a picture or quotation), never to a heading.
 - Footnotes are moved to the end of the prose and checked as their own

@@ -105,3 +105,18 @@ def paragraphs(text: str) -> Iterator[tuple[int, str]]:
     for m in _PARAGRAPH.finditer(text):
         if m.group().strip():
             yield m.start(), m.group()
+
+
+#: A paragraph with fewer words than this is a line of verse (or a heading):
+#: `\\\\` ends a paragraph, so each line of a poem or lyric is one.
+VERSE_LINE = 12
+_WORD = re.compile(r"[^\W\d_]+")
+
+
+def is_verse(paragraph: str) -> bool:
+    return len(_WORD.findall(paragraph)) < VERSE_LINE
+
+
+def verse_spans(text: str) -> list[tuple[int, int]]:
+    """(start, end) of each paragraph that is a line of verse."""
+    return [(base, base + len(para)) for base, para in paragraphs(text) if is_verse(para)]

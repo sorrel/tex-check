@@ -12,17 +12,13 @@ Brackets are matched within a paragraph, and `\\\\` ends a paragraph, so in
 verse a bracket opened on one line and closed lines later would be two
 findings. An unclosed bracket and a later unmatched one of its kind are
 paired if every line from one to the other is a line of verse (fewer than
-VERSE_LINE words); prose between them keeps both findings.
+prose.VERSE_LINE words); prose between them keeps both findings.
 """
 
 import re
 
 from ..findings import Finding
-from ..prose import paragraphs
-
-#: A paragraph with fewer words than this is a line of verse (as in near_repeats).
-VERSE_LINE = 12
-_WORD = re.compile(r"[^\W\d_]+")
+from ..prose import is_verse, paragraphs
 
 NAME = "punctuation"
 TITLE = "Spacing and punctuation"
@@ -61,7 +57,7 @@ def run(prose, settings) -> list[Finding]:
     brackets = []
     prose_spans = []  # each paragraph of prose (not verse)
     for base, para in paragraphs(prose.text):
-        if len(_WORD.findall(para)) >= VERSE_LINE:
+        if not is_verse(para):
             prose_spans.append((base, base + len(para)))
         found += [Finding(NAME, base + m.start(), base + m.end(), "double space")
                   for m in DOUBLE_SPACE.finditer(para)

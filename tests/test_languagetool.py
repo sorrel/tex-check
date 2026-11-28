@@ -97,6 +97,31 @@ def test_bold_names_are_left_alone(answers):
     assert stage.run(prose, Settings()) == []
 
 
+VERSE = "the rain was like the summertime\\\\\nwe saw it,, then left\\\\\nhe go home\\\\\n"
+PROSE = ("the rain was like the summertime, and we saw it,, then left; he go home "
+         "and the rest of a long paragraph of prose.")
+
+
+def verse_answers(text: str) -> list[dict]:
+    return [match(text.index("the"), 3, "UPPERCASE_SENTENCE_START", "CASING"),
+            match(text.index("summertime"), 10, "SUMMER_TIME", "REDUNDANCY"),
+            match(text.index(",,"), 2, "DOUBLE_PUNCTUATION", "PUNCTUATION"),
+            match(text.index("saw"), 3, "COMMA_COMPOUND_SENTENCE", "PUNCTUATION"),
+            match(text.index("go"), 2, "HE_VERB_AGR", "GRAMMAR")]
+
+
+def test_verse_keeps_its_mistakes_but_not_style_suggestions(answers):
+    answers.reply = verse_answers
+    found = stage.run(extract(body(VERSE)), Settings())
+    assert [f.message for f in found] == ["a message"] * 2
+    assert {extract(body(VERSE)).text[f.start:f.end] for f in found} == {",,", "go"}
+
+
+def test_prose_keeps_style_suggestions(answers):
+    answers.reply = verse_answers
+    assert len(stage.run(extract(body(PROSE)), Settings())) == 5
+
+
 def test_what_other_stages_check_is_turned_off():
     disabled = set(stage.DISABLED_RULES)
     assert {"MORFOLOGIK_RULE_EN_GB", "ENGLISH_WORD_REPEAT_RULE", "WHITESPACE_RULE"} <= disabled
