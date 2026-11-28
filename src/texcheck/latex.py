@@ -39,6 +39,11 @@ def extract(src: str) -> Prose:
     return LatexToProse(src).convert()
 
 
+#: After \noindent: spaces and spacing commands, then a lower-case letter.
+_RESUMES = re.compile(
+    r"(?:\s|\\(?:hspace\*?\{[^}]*\}|quad|qquad|enspace|enskip|thinspace|,))*[a-z]"
+)
+
 #: Characters with no special meaning to the reader, copied as they are.
 _PLAIN = re.compile(r"[^{}%\\$~&#^_]+")
 
@@ -139,9 +144,24 @@ class LatexToProse:
         """The control word `name` at i, its arguments starting at j."""
         if name in ("begin", "end"):
             return self.environment(name, i, j)
+        if name == "noindent":
+            return self._noindent(i, j)
         for table, handler in self._HANDLERS:
             if name in table:
                 return handler(self, name, i, j)
+        return j
+
+    def _noindent(self, i: int, j: int) -> int:
+        """`\\noindent` before a lower-case word: the paragraph before goes on
+        (text resumed after a picture or a quotation), so the break between
+        is a space, not a new sentence."""
+        if not (_RESUMES.match(self.src, j) and self.out.text.strip()):
+            return j
+        kept = len(self.out.text.rstrip())
+        if any(end == kept for _, end in self.out.titles):
+            return j   # a heading is never joined to the text after it
+        self.out.drop_trailing_space()
+        self.emit(" ", i)
         return j
 
     def _note(self, name: str, i: int, j: int) -> int:

@@ -36,6 +36,14 @@ class Prose:
         self.bold.extend([bold] * len(text))
         self._text = None
 
+    def drop_trailing_space(self) -> None:
+        """Remove spaces and line breaks (a paragraph break) from the end."""
+        while self.chars and self.chars[-1] in " \t\n":
+            self.chars.pop()
+            self.offsets.pop()
+            self.bold.pop()
+        self._text = None
+
     def put_run(self, text: str, start: int, bold: bool = False) -> None:
         """Append `text`, copied straight from the source at `start`."""
         self.chars.extend(text)
