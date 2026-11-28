@@ -212,6 +212,7 @@ function drawItem(item, firstIndex) {
     head.append(drawSuggestions(item.suggestions));
   } else {
     head.append(el("span", { class: "message" }, item.message));
+    if (item.uses.length > 1) head.append(el("span", { class: "times" }, `×${item.uses.length}`));
     if (item.note) head.append(el("span", { class: "note" }, item.note));
     if (item.suggestions.length) {
       head.append(el("span", { class: "fixes" }, "→ ", ...item.suggestions.flatMap((text, i) =>

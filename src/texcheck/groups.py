@@ -322,12 +322,25 @@ def _groups_in_run_order(run: Run) -> list[Group]:
     return out
 
 
+#: Stages whose findings with the same group are one item with several
+#: places: the same repeat ("cold cold" in a refrain) is one thing to look at.
+_SAME_GROUP_ONE_ITEM = {"repeats"}
+
+
 def _items(run: Run, stage: str, findings: list) -> list[Item]:
-    return [
-        Item(f"{stage}:{f.start}:{f.group}", stage, None, f.message, f.note, f.suggestions,
-             [Located(f, run.prose, run.source)])
-        for f in sorted(findings, key=lambda f: (f.start, f.end))
-    ]
+    items: list[Item] = []
+    merged: dict[str, Item] = {}
+    for f in sorted(findings, key=lambda f: (f.start, f.end)):
+        use = Located(f, run.prose, run.source)
+        if stage in _SAME_GROUP_ONE_ITEM and f.group in merged:
+            merged[f.group].uses.append(use)
+            continue
+        item = Item(f"{stage}:{f.start}:{f.group}", stage, None, f.message, f.note,
+                    f.suggestions, [use])
+        items.append(item)
+        if stage in _SAME_GROUP_ONE_ITEM and f.group:
+            merged[f.group] = item
+    return items
 
 
 def _kind_groups(run: Run, stage, findings: list) -> list[Group]:
