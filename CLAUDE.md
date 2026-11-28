@@ -76,6 +76,11 @@ itself in a hint without quotes or `Self`.
   behind by a removed command. TeX collapses them in print anyway.
 - aspell's en_GB dictionaries lack some good words (among, learned, dreamt,
   ...): see `ALWAYS_ACCEPT` in `checks/spelling.py`.
+- Hyphenated words (28 November 2026): aspell checks each part alone, so
+  "mindedly" in "absent-mindedly" was flagged. A rejected part of a
+  hyphenated word now passes there if the whole is in a word list, the
+  larger British list (written solid: SCOWL has no hyphens) or macOS's
+  dictionary; the same part elsewhere is still checked.
 - Place names: `tex-check --update-places [--countries GB,IE,FI]` builds
   `~/.local/share/tex-check/places.txt` (about 770,000 words, 8 MB) from
   GeoNames (CC BY 4.0): every named place in the given countries plus world
