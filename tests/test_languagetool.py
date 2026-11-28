@@ -55,6 +55,7 @@ def answers(monkeypatch):
     ("CAFE_DIACRITIC", "TYPOGRAPHY", "hyphens"),
     ("EN_DIACRITICS_REPLACE_ORTHOGRAPHY_FETES", "TYPOS", "hyphens"),
     ("COMMA_COMPOUND_SENTENCE", "PUNCTUATION", "style"),
+    ("DOUBLE_PUNCTUATION", "PUNCTUATION", "grammar"),
     ("ENGLISH_WORD_REPEAT_BEGINNING_RULE", "REPETITIONS_STYLE", "style"),
     ("RETURN_BACK", "REDUNDANCY", "style"),
     ("SOMETHING_NEW", "SOMETHING_ELSE", "grammar"),

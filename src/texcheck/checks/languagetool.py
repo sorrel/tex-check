@@ -73,6 +73,10 @@ def free_in_verse(rule: str, category: str) -> bool:
             or (category == "PUNCTUATION" and "COMMA" in rule))
 
 
+#: Rules in a style category that find slips, not choices: shown with grammar.
+_MISTAKES = {"DOUBLE_PUNCTUATION"}
+
+
 def kind_of(rule: str, category: str) -> str:
     """Which group a rule's matches go in. Unknown rules count as grammar:
     better seen first than lost among the commas."""
@@ -81,7 +85,7 @@ def kind_of(rule: str, category: str) -> str:
     if (category in ("COMPOUNDING", "TYPOGRAPHY")
             or any(part in rule for part in ("HYPHEN", "COMPOUNDS", "DIACRITIC"))):
         return "hyphens"
-    if category in _STYLE_CATEGORIES:
+    if category in _STYLE_CATEGORIES and rule not in _MISTAKES:
         return "style"
     return "grammar"
 
