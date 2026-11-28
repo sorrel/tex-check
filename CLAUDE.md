@@ -124,7 +124,10 @@ itself in a hint without quotes or `Self`.
   book: 40 words for every word gave 1,398 findings, nearly all subject
   words (people, school). Now: within 25 words if the word is used 6 times
   or fewer in the text, within 4 otherwise; about 230. Paragraphs under 12
-  words (lyric lines, headings) break the window.
+  words (lyric lines, headings) break the window. "X and X" (round and
+  round) is never flagged (28 November 2026). The same repeat or near
+  repeat in several places (a refrain) is one item with every place under
+  it: repeats group by word, near repeats by the stretch between the uses.
 
 - Layout (`checks/layout/`: `find.py` the checks and thresholds,
   `repair.py` run-together words, `match.py` back to the prose; and

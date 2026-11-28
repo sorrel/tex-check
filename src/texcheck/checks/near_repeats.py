@@ -12,12 +12,17 @@ Tuned on a 106,000-word book: without the rarity rule, 40 words flagged
 1,398 places, nearly all a book's subject words coming round again; with
 it, about 200. Words side by side are the `repeats` stage's business.
 
-Left alone: common words (COMMON), bold capitalised words (this house style
+Left alone: a word doubled round "and" ("round and round", "faster and
+faster"), a figure rather than a slip; common words (COMMON), bold capitalised words (this house style
 bolds names), and words capitalised in both uses, which are nearly always
 names. A paragraph shorter than SHORT words is taken to be a line of verse
 or a heading (`\\\\` and headings become paragraph breaks): words inside it
 are compared, but the window never reaches across it, so a chorus is not
 flagged. Between ordinary paragraphs the window carries on.
+
+Each finding's group is the stretch from the first use to the second, in
+lower case ("round and round"), so a refrain that comes round several times
+is one item with several places (a refrain in verse, say).
 """
 
 import re
@@ -61,6 +66,17 @@ def _key(word: str) -> str:
     return word.replace("’", "'").lower().removesuffix("'s")
 
 
+def _phrase(stretch: str) -> str:
+    """The stretch between two uses as compared: lower case, spaces collapsed."""
+    return " ".join(stretch.lower().split())
+
+
+def _x_and_x(stretch: str) -> bool:
+    """"round and round": the same word either side of "and", nothing else."""
+    words = _phrase(stretch).split(" ")
+    return len(words) == 3 and words[1] == "and"
+
+
 def _flagged(gap: int, uses: int, both_capitals: bool) -> bool:
     """Whether a word's use `gap` words after its last one is a near repeat."""
     near = gap <= CLOSE or uses <= RARE
@@ -71,7 +87,8 @@ def run(prose, settings) -> list[Finding]:
     text = prose.text
     uses = Counter(_key(m.group()) for m in WORD.finditer(text))
     found: list[Finding] = []
-    last: dict[str, tuple[int, bool]] = {}  # key → (word number, capitalised) of its last use
+    # key → (word number, capitalised, offset) of its last use
+    last: dict[str, tuple[int, bool, int]] = {}
     index = 0
     for base, para in paragraphs(text):
         words = list(WORD.finditer(para))
@@ -83,10 +100,15 @@ def run(prose, settings) -> list[Finding]:
             capital = word[0].isupper()
             if len(key) < MIN_LETTERS or key in COMMON or (capital and prose.bold[start]):
                 continue
-            if (before := last.get(key)) and _flagged(index - before[0], uses[key], before[1] and capital):
+            if (
+                (before := last.get(key))
+                and _flagged(index - before[0], uses[key], before[1] and capital)
+                and not _x_and_x(text[before[2]:base + match.end()])
+            ):
                 found.append(Finding(NAME, start, base + match.end(),
-                                     f"“{key}” again, {index - before[0]} words after the last"))
-            last[key] = (index, capital)
+                                     f"“{key}” again, {index - before[0]} words after the last",
+                                     group=_phrase(text[before[2]:base + match.end()])))
+            last[key] = (index, capital, start)
         if short:
             last = {}
     return found

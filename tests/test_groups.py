@@ -232,3 +232,8 @@ def test_the_same_repeat_is_one_item_with_every_place(groups_of):
     items = groups["repeats"].items
     assert [item.message for item in items] == ["“cold cold”", "“the the”"]
     assert [len(item.uses) for item in items] == [2, 1]
+
+
+def test_the_same_near_repeat_is_one_item(groups_of):
+    groups = groups_of("Her lovely smile, a lovely day\\\\\nhey\\\\\nHer lovely smile, a lovely day\\\\\n")
+    assert [len(item.uses) for item in groups["near-repeats"].items] == [2]
