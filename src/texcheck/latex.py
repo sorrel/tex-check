@@ -160,10 +160,16 @@ class LatexToProse:
         return j
 
     def _space(self, name: str, i: int, j: int) -> int:
-        """Horizontal space: its amount is dropped, the words stay apart."""
+        """Horizontal space: its amount is dropped, the words stay apart.
+
+        No space is added after one already there: "sight \\hspace{17pt}and"
+        is one space, not a double space (the added one would sit next to
+        the real one in the source).
+        """
         for _ in range(SPACES[name]):
             j = self.skip_argument(j)
-        self.emit(" ", i)
+        if not (self.out.chars and self.out.chars[-1] in " \t"):
+            self.emit(" ", i)
         return j
 
     def _quote(self, name: str, i: int, j: int) -> int:

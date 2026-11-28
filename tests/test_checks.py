@@ -62,6 +62,11 @@ def test_horizontal_space_separates_words():
     assert prose.text.split() == ["fingers", "slip", "between", "desire", "end"]
 
 
+def test_space_before_horizontal_space_is_not_a_double_space():
+    tex = r"the edge of sight \hspace{17pt}and layered sweat \quad on, but  here"
+    assert messages(punctuation, tex) == ["double space"]
+
+
 def test_contents_lines_are_not_prose():
     prose = extract(body(
         r"\addcontentsline{toc}{chapter}{\protect\numberline{}Poems for Children}"
